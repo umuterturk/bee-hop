@@ -10,7 +10,15 @@ import {playCue,setMusic,unlockAudio} from '../services/audio.js';
 import {buzz} from '../services/haptics.js';
 import {boardNote,earnedBadges,jarFill,pollenLeft} from './presentation.js';
 import Board from './Board.jsx';
-import {Jar} from './art.jsx';
+import {SHEET_URL,Sprite,SpriteButton} from './Sprite.jsx';
+import {spriteFitStyle} from './sprites.js';
+
+const BADGE_SPRITE={pure:'heart',clean:'leaf',boss:'crown'};
+function jarName(fill){
+  if(fill>=1)return 'jarFull';
+  if(fill>0)return 'jarHalf';
+  return 'jarEmpty';
+}
 
 function boot(){
   const saved=loadProgress();
@@ -203,9 +211,9 @@ export default function Game(){
     if(landings.length===1)return play(landings[0]);
     if(moves.some(move=>move.over===cell))setFiltered(filterRef.current===cell?null:cell);
   }
-  function toolButton(id,label,left){
-    return <button type="button" className={`hop-tool is-${id}`} aria-pressed={mode===id} disabled={left<=0}
-      onClick={()=>{poke();setFiltered(null);setMode(mode===id?null:id);}}>{label}<span>{left}</span></button>;
+  function toolButton(id,sprite,label,left){
+    return <SpriteButton name={sprite} className={`hop-tool is-${id}`} aria-label={`${label}, ${left} left`} aria-pressed={mode===id} disabled={left<=0}
+      onClick={()=>{poke();setFiltered(null);setMode(mode===id?null:id);}}><span className="hop-count">{left}</span></SpriteButton>;
   }
 
   const badges=status==='won'?earnedBadges(round,level):[];
@@ -219,10 +227,13 @@ export default function Game(){
         <p className="hop-brand">Bee Hop</p>
         <p className="hop-wave-name">{waveName}{level.boss?' · Boss':''}</p>
       </div>
-      <div className="hop-level-badge"><span>{level.boss?'Boss':'Level'}</span><strong>{String(level.id).padStart(2,'0')}</strong></div>
-      <button type="button" className="hop-help-button" aria-label="How to play" aria-expanded={help} onClick={()=>setHelp(value=>!value)}>?</button>
+      <div className="hop-level-badge">
+        {level.boss&&<Sprite name="crown" width={36} className="hop-boss-crown"/>}
+        <span>{level.boss?'Boss':'Level'}</span><strong>{String(level.id).padStart(2,'0')}</strong>
+      </div>
+      <SpriteButton name="buttonHelp" className="hop-help-button" aria-label="How to play" aria-expanded={help} onClick={()=>setHelp(value=>!value)}/>
     </header>
-    <div className="hop-title-row">
+    <div className="hop-title-row" style={spriteFitStyle(level.boss?'bannerPurple':'bannerGold',SHEET_URL)}>
       <h1>{level.name}</h1>
     </div>
     <div className="hop-tabs" aria-label="Levels in this wave">
@@ -234,7 +245,7 @@ export default function Game(){
       <button type="button" disabled={level.wave===7||waveStart+6>progress.unlocked} aria-label="Next wave" onClick={()=>goto(waveStart+6)}>›</button>
     </div>
     <div className="hop-goal">
-      <div ref={jarRef}><Jar fill={jarFill(round)}/></div>
+      <div ref={jarRef}><Sprite name={jarName(jarFill(round))} width={52} className="hop-jar"/></div>
       <p><strong>{pollenLeft(round)}</strong><span>left</span></p>
     </div>
     {help&&<section className="hop-sheet" role="dialog" aria-label="How to play">
@@ -256,23 +267,31 @@ export default function Game(){
     <p className="hop-note" aria-live="polite">{note}</p>
     {status==='won'&&<section className="hop-win" role="dialog" aria-labelledby="hop-win-title">
       <p className="hop-kicker">Field cleared</p>
-      <h2 id="hop-win-title">Sweet success</h2>
+      <div className="hop-win-banner" style={spriteFitStyle('bannerGold',SHEET_URL)}>
+        <Sprite name="sparkleSmall" width={22} className="hop-win-spark is-left"/>
+        <h2 id="hop-win-title">Sweet success</h2>
+        <Sprite name="sparkleMedium" width={28} className="hop-win-spark is-right"/>
+      </div>
       <p>{round.turns} {round.turns===1?'hop':'hops'}.</p>
-      {badges.length>0&&<ul className="hop-badges">{badges.map(badge=><li key={badge.id}>{badge.name}</li>)}</ul>}
-      <button ref={nextRef} type="button" className="hop-next" onClick={()=>goto(level.id===LEVELS.length?1:level.id+1)}>
+      {badges.length>0&&<ul className="hop-badges">{badges.map(badge=><li key={badge.id}><Sprite name={BADGE_SPRITE[badge.id]} width={22}/>{badge.name}</li>)}</ul>}
+      <button ref={nextRef} type="button" className="hop-next" style={spriteFitStyle('buttonGold',SHEET_URL)} onClick={()=>goto(level.id===LEVELS.length?1:level.id+1)}>
         {level.id===LEVELS.length?'Play the first field':'Next field'}
       </button>
     </section>}
-    {status==='stuck'&&<p className="hop-stuck">No hops left from here.</p>}
+    {status==='stuck'&&<p className="hop-stuck" style={spriteFitStyle('bubble',SHEET_URL)}>No hops left from here.</p>}
     <div className="hop-tools">
-      <button type="button" className="hop-undo" onClick={doUndo} disabled={!round.past.length||(round.undoLeft!==null&&round.undoLeft<=0)}>{undoLabel}</button>
-      {grant.tunnel>0&&toolButton('tunnel','Tunnel',round.charges.tunnel)}
-      {grant.seed>0&&toolButton('seed','Seed',round.charges.seed)}
-      {grant.worker>0&&toolButton('summon','Worker',round.charges.worker)}
+      <SpriteButton name="buttonUndo" aria-label={undoLabel} onClick={doUndo} disabled={!round.past.length||(round.undoLeft!==null&&round.undoLeft<=0)}>
+        {round.undoLeft!=null&&<span className="hop-count">{round.undoLeft}</span>}
+      </SpriteButton>
+      {grant.tunnel>0&&toolButton('tunnel','buttonTunnel','Tunnel',round.charges.tunnel)}
+      {grant.seed>0&&toolButton('seed','buttonSeed','Seed',round.charges.seed)}
+      {grant.worker>0&&toolButton('summon','buttonWorker','Worker',round.charges.worker)}
     </div>
     <div className="hop-secondary">
-      <button type="button" className="hop-hint" onClick={doHint} disabled={status!=='playing'||(round.danceLeft!==null&&round.danceLeft<=0)}>{hint?.outcome==='win'&&hint.layer+1<hint.steps.length?'Look ahead':hintLabel}</button>
-      <button type="button" onClick={restart}>Restart</button>
+      <SpriteButton name="buttonHint" aria-label={hint?.outcome==='win'&&hint.layer+1<hint.steps.length?'Look ahead':hintLabel} onClick={doHint} disabled={status!=='playing'||(round.danceLeft!==null&&round.danceLeft<=0)}>
+        {round.danceLeft!=null&&<span className="hop-count">{round.danceLeft}</span>}
+      </SpriteButton>
+      <SpriteButton name="buttonRestart" aria-label="Restart" onClick={restart}/>
     </div>
     {debug&&<details className="hop-debug">
       <summary>Design numbers</summary>

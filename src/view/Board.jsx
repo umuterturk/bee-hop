@@ -1,6 +1,7 @@
 import React,{useEffect,useRef,useState} from 'react';
 import {gsap} from 'gsap';
-import {BeeMark,FlowerMark,HiveMark} from './art.jsx';
+import {SHEET_URL,Sprite} from './Sprite.jsx';
+import {spriteStyle} from './sprites.js';
 
 function metricsFor(width,height){
   const boardWidth=width+.5;
@@ -70,6 +71,13 @@ export default function Board({
         if(overBox&&jarBox.width){
           bit=document.createElement('span');
           bit.className='hop-bit';
+          const painted=spriteStyle('flower',SHEET_URL,22);
+          bit.style.width=`${painted.width}px`;
+          bit.style.height=`${painted.height}px`;
+          bit.style.backgroundImage=painted.backgroundImage;
+          bit.style.backgroundRepeat=painted.backgroundRepeat;
+          bit.style.backgroundSize=painted.backgroundSize;
+          bit.style.backgroundPosition=painted.backgroundPosition;
           document.body.appendChild(bit);
           gsap.fromTo(bit,
             {x:overBox.left+overBox.width/2,y:overBox.top+overBox.height/2,xPercent:-50,yPercent:-50,opacity:1},
@@ -93,6 +101,16 @@ export default function Board({
         const interactive=bee&&status==='playing'||landing||flowerChoice||tool;
         const hinted=hintTo===cell||hintStep?.over===cell;
         const worker=bee&&cell!==round.lead;
+        const settledBee=bee&&moving!==cell;
+        let tile='hexHoney';
+        if(hive&&!pollen&&!(settledBee&&!worker))tile='hexHoneyDrip';
+        if(pollen)tile='hexFlower';
+        if(landing)tile=hinted||nudge?'hexLandingSparkle':'hexLanding';
+        if(tool&&mode==='tunnel')tile='hexPortal';
+        if(tool&&mode==='seed')tile='hexHoney';
+        if(tool&&mode==='summon')tile='hexHoneyDrip';
+        if(settledBee&&!worker)tile='hexBee';
+        const mark=settledBee&&worker?'beeWorker':tool&&mode==='seed'?'mango':null;
         let label=`Empty hex, ${place(cell,width)}`;
         if(bee)label=`${worker?'Worker bee':'Bee'} at ${place(cell,width)}${cell===selected?', selected':''}`;
         else if(tool&&mode==='tunnel')label=`Burrow to ${place(cell,width)}`;
@@ -107,12 +125,13 @@ export default function Board({
           style={cellStyle(cell,width,metrics)} disabled={!interactive} aria-label={label}
           aria-pressed={bee?cell===selected:flowerChoice?filtered===cell:undefined}
           onClick={()=>onCell(cell)}>
-          {bee?<BeeMark worker={worker}/>:pollen?<FlowerMark/>:null}
-          {hive&&!bee&&!pollen?<HiveMark/>:null}
-          {(landing||tool)&&!bee&&!pollen?<span className="hop-dot"/>:null}
+          <Sprite name={tile} className="hop-hex"/>
+          {mark&&<Sprite name={mark} className={`hop-mark is-${mark}`}/>}
+          {bee&&cell===selected&&moving!==cell&&<Sprite name="ringDashed" className="hop-ring"/>}
+          {hinted&&!landing&&<Sprite name="sparkleMedium" className="hop-spark"/>}
         </button>;
       })}
-      {moving!=null&&<div className="hop-ghost" ref={ghostRef}><BeeMark worker={moving!==round.lead}/></div>}
+      {moving!=null&&<div className="hop-ghost" ref={ghostRef}><Sprite name={moving!==round.lead?'beeWorker':'bee'} className="hop-mark"/></div>}
     </div>
   </div>;
 }
