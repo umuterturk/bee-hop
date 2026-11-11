@@ -16,6 +16,13 @@ export function refillHearts(hearts,now){
   if(count>=HEART_CAP)return freshHearts()
   return {count,nextAt}
 }
+export function grantHeart(hearts,now){
+  const current=refillHearts(hearts,now)
+  if(current.count>=HEART_CAP)return freshHearts()
+  const count=current.count+1
+  if(count>=HEART_CAP)return freshHearts()
+  return {count,nextAt:current.nextAt}
+}
 export function spendHeart(hearts,now){
   const current=refillHearts(hearts,now)
   if(current.count<=0)return current

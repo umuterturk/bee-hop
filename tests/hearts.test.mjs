@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {HEART_CAP,HEART_REFILL_MS,freshHearts,refillHearts,spendHeart} from '../src/session/hearts.js';
+import {HEART_CAP,HEART_REFILL_MS,freshHearts,grantHeart,refillHearts,spendHeart} from '../src/session/hearts.js';
 import {loadProgress,memoryStorage,saveProgress,PROGRESS_KEY} from '../src/session/progress.js';
 import {newRound} from '../src/session/round.js';
 import {LEVELS} from '../src/content/catalog.js';
@@ -18,6 +18,13 @@ test('losing a heart starts a thirty minute refill without resetting a running t
   const again=spendHeart(waiting,start+5*60*1000);
   assert.deepEqual(again,{count:1,nextAt:start+HEART_REFILL_MS});
   assert.deepEqual(spendHeart({count:0,nextAt:start+HEART_REFILL_MS},start),{count:0,nextAt:start+HEART_REFILL_MS});
+});
+test('a new life adds one heart and stops the timer when the bank is full',()=>{
+  assert.deepEqual(grantHeart({count:0,nextAt:start+HEART_REFILL_MS},start),{count:1,nextAt:start+HEART_REFILL_MS});
+  assert.deepEqual(grantHeart({count:2,nextAt:start+HEART_REFILL_MS},start),freshHearts());
+  assert.deepEqual(grantHeart(freshHearts(),start),freshHearts());
+  assert.deepEqual(grantHeart({count:1,nextAt:start+HEART_REFILL_MS},start),{count:2,nextAt:start+HEART_REFILL_MS});
+  assert.deepEqual(grantHeart({count:0,nextAt:start},start+HEART_REFILL_MS),freshHearts());
 });
 test('hearts refill one at a time until the bank is full',()=>{
   const empty={count:0,nextAt:start+HEART_REFILL_MS};

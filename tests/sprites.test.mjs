@@ -18,22 +18,27 @@ test('every painted frame sits inside the sheet and has its own box',()=>{
     seen.add(key);
   }
 });
-test('spriteStyle scales hexHoney so the frame width is the display width',()=>{
-  const style=spriteStyle('hexHoney','/sheets/sprite-sheet.png',92);
+test('spriteStyle scales a cropped frame to the display width',()=>{
+  const style=spriteStyle('hexHoney','/frames/hexHoney.png',92);
   assert.equal(style.width,92);
   assert.equal(style.height,104);
   assert.equal(style.backgroundRepeat,'no-repeat');
-  assert.equal(style.backgroundPosition,'-11.5px -10.5px');
-  assert.equal(style.backgroundSize,'724px 543px');
-  assert.equal(style.backgroundImage,"url('/sheets/sprite-sheet.png')");
-  assert.throws(()=>spriteStyle('missing','/sheets/sprite-sheet.png',92),/missing/);
+  assert.equal(style.backgroundPosition,'0 0');
+  assert.equal(style.backgroundSize,'100% 100%');
+  assert.equal(style.backgroundImage,"url('/frames/hexHoney.png')");
+  assert.throws(()=>spriteStyle('missing','/frames/hexHoney.png',92),/missing/);
 });
-test('spriteFitStyle fills its box with one frame',()=>{
-  const style=spriteFitStyle('hexHoney','/sheets/sprite-sheet.png');
+test('spriteFitStyle fills its box with one cropped frame',()=>{
+  const style=spriteFitStyle('hexHoney','/frames/hexHoney.png');
   assert.equal(style.backgroundRepeat,'no-repeat');
-  assert.equal(style.backgroundImage,"url('/sheets/sprite-sheet.png')");
+  assert.equal(style.backgroundImage,"url('/frames/hexHoney.png')");
   assert.equal(style.aspectRatio,'184 / 208');
-  assert.equal(style.backgroundSize,'786.957% 522.115%');
-  assert.equal(style.backgroundPosition,'1.82% 2.392%');
-  assert.throws(()=>spriteFitStyle('missing','/sheets/sprite-sheet.png'),/missing/);
+  assert.equal(style.backgroundSize,'100% 100%');
+  assert.equal(style.backgroundPosition,'0 0');
+  assert.throws(()=>spriteFitStyle('missing','/frames/hexHoney.png'),/missing/);
+});
+test('a sprite paints nothing until its shared frame is ready',()=>{
+  const style=spriteFitStyle('heart','');
+  assert.equal(style.backgroundImage,'none');
+  assert.equal(style.backgroundSize,'100% 100%');
 });

@@ -1,6 +1,6 @@
 import React,{useEffect,useRef,useState} from 'react';
 import {gsap} from 'gsap';
-import {SHEET_URL,Sprite} from './Sprite.jsx';
+import {Sprite,frameUrl,peekFrame} from './Sprite.jsx';
 import {hexTile} from './presentation.js';
 import {spriteStyle} from './sprites.js';
 
@@ -72,23 +72,29 @@ export default function Board({
         const jarBox=flight.jar.getBoundingClientRect();
         const overBox=overEl?.getBoundingClientRect();
         if(overBox&&jarBox.width){
-          bit=document.createElement('span');
-          bit.className='hop-bit';
-          const painted=spriteStyle('flower',SHEET_URL,22);
-          bit.style.width=`${painted.width}px`;
-          bit.style.height=`${painted.height}px`;
-          bit.style.backgroundImage=painted.backgroundImage;
-          bit.style.backgroundRepeat=painted.backgroundRepeat;
-          bit.style.backgroundSize=painted.backgroundSize;
-          bit.style.backgroundPosition=painted.backgroundPosition;
-          document.body.appendChild(bit);
-          gsap.fromTo(bit,
-            {x:overBox.left+overBox.width/2,y:overBox.top+overBox.height/2,xPercent:-50,yPercent:-50,opacity:1},
-            {x:jarBox.left+jarBox.width/2,y:jarBox.top+jarBox.height/2,opacity:0,duration:flight.celebrate?0.7:0.42,ease:'power2.in',onComplete(){bit.remove();}});
+          const launch=url=>{
+            if(!live||!url)return;
+            bit=document.createElement('span');
+            bit.className='hop-bit';
+            const painted=spriteStyle('flower',url,22);
+            bit.style.width=`${painted.width}px`;
+            bit.style.height=`${painted.height}px`;
+            bit.style.backgroundImage=painted.backgroundImage;
+            bit.style.backgroundRepeat=painted.backgroundRepeat;
+            bit.style.backgroundSize=painted.backgroundSize;
+            bit.style.backgroundPosition=painted.backgroundPosition;
+            document.body.appendChild(bit);
+            gsap.fromTo(bit,
+              {x:overBox.left+overBox.width/2,y:overBox.top+overBox.height/2,xPercent:-50,yPercent:-50,opacity:1},
+              {x:jarBox.left+jarBox.width/2,y:jarBox.top+jarBox.height/2,opacity:0,duration:flight.celebrate?0.7:0.42,ease:'power2.in',onComplete(){bit?.remove();}});
+          };
+          const ready=peekFrame('flower');
+          if(ready)launch(ready);
+          else frameUrl('flower').then(launch);
         }
       }
     });
-    return ()=>{live=false;ctx.revert();bit?.remove();};
+    return ()=>{live=false;ctx.revert();if(bit){gsap.killTweensOf(bit);bit.remove();}};
   },[flight,reduced]);
 
   return <div ref={boardRef} className="hop-board" role="group" aria-label={`${width} by ${height} honeycomb`}
