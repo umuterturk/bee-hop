@@ -9,7 +9,7 @@ import {HEART_CAP,freshHearts,heartWait,refillHearts,spendHeart} from '../sessio
 import {track} from '../services/analytics.js';
 import {playCue,setMusic,unlockAudio} from '../services/audio.js';
 import {buzz} from '../services/haptics.js';
-import {boardNote,earnedBadges,jarFill,pollenLeft} from './presentation.js';
+import {boardNote,deadEndCells,earnedBadges,jarFill,pollenLeft} from './presentation.js';
 import Board from './Board.jsx';
 import {SHEET_URL,Sprite,SpriteButton} from './Sprite.jsx';
 import {spriteFitStyle} from './sprites.js';
@@ -40,9 +40,9 @@ export default function Game(){
   const [hint,setHint]=useState(null);
   const [flight,setFlight]=useState(null);
   const [help,setHelp]=useState(false);
-  const [zoom,setZoom]=useState(false);
   const [nudge,setNudge]=useState(false);
   const [deal,setDeal]=useState(0);
+  const [jarPulse,setJarPulse]=useState(0);
   const [now,setNow]=useState(()=>Date.now());
   const [debug]=useState(()=>typeof window!=='undefined'&&new URLSearchParams(window.location.search).has('debug'));
   const roundRef=useRef(round);
@@ -66,6 +66,7 @@ export default function Game(){
   const selected=round.bees.includes(selectedBee)?selectedBee:round.bees[0];
   const allJumps=legalJumps(board).filter(move=>move.bee===selected);
   const jumps=filtered==null?allJumps:allJumps.filter(move=>move.over===filtered);
+  const deadEnds=status==='playing'&&!mode?deadEndCells(board,jumps):new Set();
   const toolCells=mode==='tunnel'?tunnelTargets(board,selected):mode==='seed'?seedTargets(board,selected):mode==='summon'?summonTargets(board):[];
   const hintStep=hint?.outcome==='win'?hint.steps[hint.layer]:null;
   const reduced=progress.settings.reduceMotion;
@@ -75,6 +76,8 @@ export default function Game(){
   const hearts=refillHearts(progress.hearts,now);
   const locked=hearts.count<=0;
   const waitLabel=heartWait(hearts,now);
+  const prevUnlocked=level.id>1&&level.id-1<=progress.unlocked?level.id-1:null;
+  const nextUnlocked=level.id<LEVELS.length&&level.id+1<=progress.unlocked?level.id+1:null;
 
   useEffect(()=>{track('level_start',{levelId:level.id,wave:level.wave,boss:level.boss});acted.current=false;},[level.id,deal]);
   useEffect(()=>{
@@ -140,7 +143,7 @@ export default function Game(){
     if('music' in partial&&audioReady.current)setMusic(partial.music);
   }
   function resetSelection(nextRound,bee=nextRound.bees[0]){
-    setMode(null);setFiltered(null);setHint(null);setFlight(null);setSelectedBee(bee);setZoom(false);
+    setMode(null);setFiltered(null);setHint(null);setFlight(null);setSelectedBee(bee);
   }
   function chargeAttempt(){
     const current=roundRef.current;
@@ -158,7 +161,7 @@ export default function Game(){
     const nextLevel=LEVELS[id-1];
     const fresh=newRound(nextLevel);
     roundRef.current=fresh;
-    setLevelId(id);setRound(fresh);resetSelection(fresh);setDeal(value=>value+1);
+    setLevelId(id);setRound(fresh);resetSelection(fresh);setDeal(value=>value+1);setHelp(false);
   }
   function restart(){
     if(locked)return;
@@ -179,6 +182,7 @@ export default function Game(){
     setHint(null);setFiltered(null);setMode(null);
     const bee=action.type==='summon'?action.hive:action.to??selected;
     if(action.type!=='seed')setSelectedBee(bee);
+    if(next.pollen.length<current.pollen.length)setJarPulse(value=>value+1);
     setFlight({
       kind:action.type,from:action.bee??null,to:action.to??action.hive,over:action.over??null,
       token:current.turns+1,celebrate:next.pollen.length===0,jar:jarRef.current
@@ -259,83 +263,111 @@ export default function Game(){
 
   return <div className={`hop ${level.boss?'is-boss':''} ${reduced?'is-reduced':''} ${locked?'is-tired':''}`} data-status={status} data-level={level.id}
     onPointerDown={poke}>
-    <header className="hop-top">
-      <div>
-        <p className="hop-brand">Bee Hop</p>
-        <p className="hop-wave-name">{waveName}{level.boss?' · Boss':''}</p>
-      </div>
-      <div className="hop-level-badge">
-        {level.boss&&<Sprite name="crown" width={36} className="hop-boss-crown"/>}
-        <span>{level.boss?'Boss':'Level'}</span><strong>{String(level.id).padStart(2,'0')}</strong>
-      </div>
-      <SpriteButton name="buttonHelp" className="hop-help-button" aria-label="How to play" aria-expanded={help} onClick={()=>setHelp(value=>!value)}/>
-    </header>
-    <div className="hop-title-row" style={spriteFitStyle(level.boss?'bannerPurple':'bannerGold',SHEET_URL)}>
-      <h1>{level.name}</h1>
-    </div>
-    <div className="hop-tabs" aria-label="Levels in this wave">
-      <button type="button" disabled={level.wave===0} aria-label="Previous wave" onClick={()=>goto(waveStart-4)}>‹</button>
-      {LEVELS.slice(waveStart,waveStart+5).map(entry=><button key={entry.id} type="button"
-        className={`${entry.id===level.id?'is-active':''} ${entry.boss?'is-boss':''}`}
-        aria-pressed={entry.id===level.id} disabled={entry.id>progress.unlocked}
-        onClick={()=>goto(entry.id)}>{entry.id}</button>)}
-      <button type="button" disabled={level.wave===7||waveStart+6>progress.unlocked} aria-label="Next wave" onClick={()=>goto(waveStart+6)}>›</button>
-    </div>
-    <div className="hop-goal">
-      <div ref={jarRef}><Sprite name={jarName(jarFill(round))} width={52} className="hop-jar"/></div>
-      <p><strong>{pollenLeft(round)}</strong><span>left</span></p>
-      <div className="hop-hearts" aria-label={`${hearts.count} of ${HEART_CAP} hearts`}>
-        <div className="hop-heart-row">
-          {Array.from({length:HEART_CAP},(_,index)=><Sprite key={index} name={index<hearts.count?'heart':'heartOutline'} width={26}/>)}
+    <header className="hop-hud">
+      <div className="hop-hud-level">
+        <button type="button" className="hop-hud-nav" aria-label="Previous level" disabled={!prevUnlocked||locked} onClick={()=>goto(prevUnlocked)}>‹</button>
+        <div className="hop-level-badge">
+          {level.boss&&<Sprite name="crown" width={28} className="hop-boss-crown"/>}
+          <span>{level.boss?'Boss':'Level'}</span><strong>{String(level.id).padStart(2,'0')}</strong>
         </div>
-        {waitLabel&&<p className="hop-heart-wait">Next heart {waitLabel}</p>}
+        <button type="button" className="hop-hud-nav" aria-label="Next level" disabled={!nextUnlocked||locked} onClick={()=>goto(nextUnlocked)}>›</button>
+      </div>
+      <div className="hop-goal">
+        <div ref={jarRef} className={jarPulse?'hop-jar is-pulse':'hop-jar'} onAnimationEnd={()=>setJarPulse(0)}>
+          <Sprite name={jarName(jarFill(round))} width={44}/>
+        </div>
+        <p><strong>{pollenLeft(round)}</strong><span>left</span></p>
+      </div>
+      <div className="hop-hud-right">
+        <div className="hop-hearts" aria-label={`${hearts.count} of ${HEART_CAP} hearts`}>
+          <div className="hop-heart-row">
+            {Array.from({length:HEART_CAP},(_,index)=><Sprite key={index} name={index<hearts.count?'heart':'heartOutline'} width={22}/>)}
+          </div>
+          {waitLabel&&<p className="hop-heart-wait">{waitLabel}</p>}
+        </div>
+        <SpriteButton name="buttonHelp" className="hop-help-button" aria-label="How to play" aria-expanded={help} onClick={()=>setHelp(value=>!value)}/>
+      </div>
+    </header>
+
+    <div className="hop-stage">
+      <Board key={deal} width={level.width} height={level.height} round={round} selected={selected} jumps={jumps}
+        pollenChoices={allJumps.map(move=>move.over)} toolCells={toolCells} hintStep={hintStep} mode={mode}
+        flight={flight} reduced={reduced} nudge={nudge&&jumps.length===1} status={status}
+        filtered={filtered} deadEnds={deadEnds} onCell={onCell}/>
+    </div>
+
+    <p className="hop-note" aria-live="polite">{locked?`Out of hearts · ${waitLabel}`:note}</p>
+
+    <div className="hop-dock">
+      <div className="hop-tools">
+        <SpriteButton name="buttonUndo" aria-label={undoLabel} onClick={doUndo} disabled={locked||!round.past.length||(round.undoLeft!==null&&round.undoLeft<=0)}>
+          {round.undoLeft!=null&&<span className="hop-count">{round.undoLeft}</span>}
+        </SpriteButton>
+        {grant.tunnel>0&&toolButton('tunnel','buttonTunnel','Tunnel',round.charges.tunnel)}
+        {grant.seed>0&&toolButton('seed','buttonSeed','Seed',round.charges.seed)}
+        {grant.worker>0&&toolButton('summon','buttonWorker','Worker',round.charges.worker)}
+      </div>
+      <div className="hop-secondary">
+        <SpriteButton name="buttonHint" aria-label={hint?.outcome==='win'&&hint.layer+1<hint.steps.length?'Look ahead':hintLabel} onClick={doHint} disabled={locked||status!=='playing'||(round.danceLeft!==null&&round.danceLeft<=0)}>
+          {round.danceLeft!=null&&<span className="hop-count">{round.danceLeft}</span>}
+        </SpriteButton>
+        <SpriteButton name="buttonRestart" aria-label="Restart" onClick={restart} disabled={locked}/>
       </div>
     </div>
-    {help&&<section className="hop-sheet" role="dialog" aria-label="How to play">
-      <p>Every hop crosses one flower and lands on any green hex past it.</p>
-      <p>Undo rewinds one move. Restart restores the field. Hint shows a landing that clears it, and never moves for you.</p>
-      <p>Some fields offer Tunnel, Seed, or a Worker. Every field can be cleared without them.</p>
-      <div className="hop-settings">
-        <label><input type="checkbox" checked={progress.settings.sound} onChange={event=>patchSettings({sound:event.target.checked})}/> Sound</label>
-        <label><input type="checkbox" checked={progress.settings.music} onChange={event=>patchSettings({music:event.target.checked})}/> Music</label>
-        <label><input type="checkbox" checked={progress.settings.haptics} onChange={event=>patchSettings({haptics:event.target.checked})}/> Haptics</label>
-        <label><input type="checkbox" checked={progress.settings.reduceMotion} onChange={event=>patchSettings({reduceMotion:event.target.checked})}/> Reduce motion</label>
-      </div>
-    </section>}
-    <Board width={level.width} height={level.height} round={round} selected={selected} jumps={jumps}
-      pollenChoices={allJumps.map(move=>move.over)} toolCells={toolCells} hintStep={hintStep} mode={mode}
-      flight={flight} reduced={reduced} nudge={nudge&&jumps.length===1} zoom={zoom} status={status}
-      filtered={filtered} onCell={onCell}/>
-    {level.width>=7&&<button type="button" className="hop-zoom" onClick={()=>setZoom(value=>!value)}>{zoom?'Fit the field':'Enlarge the field'}</button>}
-    <p className="hop-note" aria-live="polite">{locked?`Out of hearts. Next heart in ${waitLabel}.`:note}</p>
-    {status==='won'&&<section className="hop-win" role="dialog" aria-labelledby="hop-win-title">
-      <p className="hop-kicker">Field cleared</p>
-      <div className="hop-win-banner" style={spriteFitStyle('bannerGold',SHEET_URL)}>
-        <Sprite name="sparkleSmall" width={22} className="hop-win-spark is-left"/>
-        <h2 id="hop-win-title">Sweet success</h2>
-        <Sprite name="sparkleMedium" width={28} className="hop-win-spark is-right"/>
-      </div>
-      <p>{round.turns} {round.turns===1?'hop':'hops'}.</p>
-      {badges.length>0&&<ul className="hop-badges">{badges.map(badge=><li key={badge.id}><Sprite name={BADGE_SPRITE[badge.id]} width={22}/>{badge.name}</li>)}</ul>}
-      <button ref={nextRef} type="button" className="hop-next" style={spriteFitStyle('buttonGold',SHEET_URL)} disabled={locked} onClick={()=>goto(level.id===LEVELS.length?1:level.id+1)}>
-        {level.id===LEVELS.length?'Play the first field':'Next field'}
-      </button>
-    </section>}
-    {status==='stuck'&&<p className="hop-stuck" style={spriteFitStyle('bubble',SHEET_URL)}>No hops left from here.</p>}
-    <div className="hop-tools">
-      <SpriteButton name="buttonUndo" aria-label={undoLabel} onClick={doUndo} disabled={locked||!round.past.length||(round.undoLeft!==null&&round.undoLeft<=0)}>
-        {round.undoLeft!=null&&<span className="hop-count">{round.undoLeft}</span>}
-      </SpriteButton>
-      {grant.tunnel>0&&toolButton('tunnel','buttonTunnel','Tunnel',round.charges.tunnel)}
-      {grant.seed>0&&toolButton('seed','buttonSeed','Seed',round.charges.seed)}
-      {grant.worker>0&&toolButton('summon','buttonWorker','Worker',round.charges.worker)}
-    </div>
-    <div className="hop-secondary">
-      <SpriteButton name="buttonHint" aria-label={hint?.outcome==='win'&&hint.layer+1<hint.steps.length?'Look ahead':hintLabel} onClick={doHint} disabled={locked||status!=='playing'||(round.danceLeft!==null&&round.danceLeft<=0)}>
-        {round.danceLeft!=null&&<span className="hop-count">{round.danceLeft}</span>}
-      </SpriteButton>
-      <SpriteButton name="buttonRestart" aria-label="Restart" onClick={restart} disabled={locked}/>
-    </div>
+
+    {help&&<div className="hop-sheet-backdrop" role="presentation" onClick={event=>{if(event.target===event.currentTarget)setHelp(false);}}>
+      <section className="hop-sheet" role="dialog" aria-label="How to play">
+        <h2>{level.name}</h2>
+        <p className="hop-wave-label">{waveName}{level.boss?' · Boss':''}</p>
+        <p>Every hop crosses one flower and lands on any green hex past it.</p>
+        <p>Stone hexes are dead ends — landing there leaves no hops. Undo rewinds one move. Hint shows a landing that clears it.</p>
+        <p>Some fields offer Tunnel, Seed, or a Worker. Every field can be cleared without them.</p>
+        <p className="hop-wave-label" id="hop-levels-label">Levels in this wave</p>
+        <div className="hop-tabs" role="group" aria-labelledby="hop-levels-label">
+          <button type="button" disabled={level.wave===0} aria-label="Previous wave" onClick={()=>goto(waveStart-4)}>‹</button>
+          {LEVELS.slice(waveStart,waveStart+5).map(entry=><button key={entry.id} type="button"
+            className={`${entry.id===level.id?'is-active':''} ${entry.boss?'is-boss':''}`}
+            aria-pressed={entry.id===level.id} disabled={entry.id>progress.unlocked}
+            onClick={()=>goto(entry.id)}>{entry.id}</button>)}
+          <button type="button" disabled={level.wave===7||waveStart+6>progress.unlocked} aria-label="Next wave" onClick={()=>goto(waveStart+6)}>›</button>
+        </div>
+        <div className="hop-settings">
+          <label><input type="checkbox" checked={progress.settings.sound} onChange={event=>patchSettings({sound:event.target.checked})}/> Sound</label>
+          <label><input type="checkbox" checked={progress.settings.music} onChange={event=>patchSettings({music:event.target.checked})}/> Music</label>
+          <label><input type="checkbox" checked={progress.settings.haptics} onChange={event=>patchSettings({haptics:event.target.checked})}/> Haptics</label>
+          <label><input type="checkbox" checked={progress.settings.reduceMotion} onChange={event=>patchSettings({reduceMotion:event.target.checked})}/> Reduce motion</label>
+        </div>
+      </section>
+    </div>}
+
+    {status==='won'&&<div className="hop-overlay" role="presentation">
+      <section className="hop-win" role="dialog" aria-labelledby="hop-win-title">
+        <p className="hop-kicker">Field cleared</p>
+        <div className="hop-win-banner" style={spriteFitStyle('bannerGold',SHEET_URL)}>
+          <Sprite name="sparkleSmall" width={22} className="hop-win-spark is-left"/>
+          <h2 id="hop-win-title">Sweet success</h2>
+          <Sprite name="sparkleMedium" width={28} className="hop-win-spark is-right"/>
+        </div>
+        <p>{round.turns} {round.turns===1?'hop':'hops'}.</p>
+        {badges.length>0&&<ul className="hop-badges">{badges.map(badge=><li key={badge.id}><Sprite name={BADGE_SPRITE[badge.id]} width={22}/>{badge.name}</li>)}</ul>}
+        <button ref={nextRef} type="button" className="hop-next" style={spriteFitStyle('buttonGold',SHEET_URL)} disabled={locked} onClick={()=>goto(level.id===LEVELS.length?1:level.id+1)}>
+          {level.id===LEVELS.length?'Play the first field':'Next field'}
+        </button>
+      </section>
+    </div>}
+
+    {status==='stuck'&&<div className="hop-overlay" role="presentation">
+      <section className="hop-stuck-card" role="dialog" aria-labelledby="hop-stuck-title">
+        <p className="hop-kicker">No hops left</p>
+        <h2 id="hop-stuck-title" style={{margin:'6px 0 0',fontFamily:'"Lilita One",system-ui,sans-serif',fontSize:28,fontWeight:400,color:'#7a4e12'}}>Stuck!</h2>
+        <p>Undo a move or restart the field.</p>
+        <div className="hop-stuck-actions">
+          <button type="button" className="hop-next" style={spriteFitStyle('buttonGold',SHEET_URL)} disabled={locked||!round.past.length||(round.undoLeft!==null&&round.undoLeft<=0)} onClick={doUndo}>Undo</button>
+          <button type="button" className="hop-ghost-btn" disabled={locked} onClick={restart}>Restart</button>
+        </div>
+      </section>
+    </div>}
+
     {debug&&<details className="hop-debug">
       <summary>Design numbers</summary>
       <p>Difficulty {level.metrics.difficulty.toFixed(2)} · winning routes {level.metrics.winningPaths} · forks {level.metrics.forks}</p>

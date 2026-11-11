@@ -2,10 +2,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {LEVELS} from '../src/content/catalog.js';
 import {hiveCell,inventoryFor} from '../src/content/campaign.js';
-import {legalJumps,seedTargets} from '../src/engine/abilities.js';
+import {legalJumps,seedTargets,statusOf,step} from '../src/engine/abilities.js';
 import {commit,newRound,toBoard,undo} from '../src/session/round.js';
 import {loadProgress,memoryStorage,saveProgress,PROGRESS_KEY} from '../src/session/progress.js';
-import {boardNote,earnedBadges,hintCopy,jarFill} from '../src/view/presentation.js';
+import {boardNote,deadEndCells,earnedBadges,hintCopy,jarFill} from '../src/view/presentation.js';
 
 test('tool grants follow the wave table and never show more than three tools',()=>{
   assert.deepEqual(inventoryFor(LEVELS[0]),{undo:null,dance:null,tunnel:0,seed:0,worker:0});
@@ -73,6 +73,17 @@ test('badges credit a clean route and a boss, and hint copy does not call a mere
   assert.match(copy,/clears the field/);
   assert.doesNotMatch(copy,/next move/);
   assert.match(boardNote({status:'stuck',hint:null,mode:null,filtered:false,level:LEVELS[0],round:{turns:1,usedUndo:false,bees:[0]}}),/Undo or restart/);
+});
+test('dead-end landings are the jumps that leave the board stuck',()=>{
+  const board={width:5,height:5,bees:[0],pollen:[1,5,6],charges:{tunnel:0,seed:0,worker:0},hives:[],blocked:[]};
+  const jumps=legalJumps(board);
+  assert.equal(jumps.length,6);
+  const dead=deadEndCells(board,jumps);
+  assert.equal(dead.size,4);
+  for(const move of jumps){
+    const stuck=statusOf(step(board,move))==='stuck';
+    assert.equal(dead.has(move.to),stuck);
+  }
 });
 test('progress ignores corrupt saves and keeps a valid resume',()=>{
   const storage=memoryStorage();

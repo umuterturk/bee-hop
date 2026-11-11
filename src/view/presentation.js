@@ -1,4 +1,20 @@
 import {lessonFor} from '../content/campaign.js';
+import {statusOf,step} from '../engine/abilities.js';
+
+/** Landing cells whose every listed jump leaves the board stuck. */
+export function deadEndCells(board,jumps){
+  const byLanding=new Map();
+  for(const move of jumps){
+    const list=byLanding.get(move.to);
+    if(list)list.push(move);
+    else byLanding.set(move.to,[move]);
+  }
+  const dead=new Set();
+  for(const [to,moves] of byLanding){
+    if(moves.every(move=>statusOf(step(board,move))==='stuck'))dead.add(to);
+  }
+  return dead;
+}
 
 export function earnedBadges(round,level){
   const badges=[];
