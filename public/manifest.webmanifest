@@ -1,0 +1,12 @@
+{
+  "name": "Bee Hop",
+  "short_name": "Bee Hop",
+  "description": "One bee, a field of pollen, and a landing that matters.",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#1d4a38",
+  "theme_color": "#1d4a38",
+  "icons": [
+    {"src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any"}
+  ]
+}
