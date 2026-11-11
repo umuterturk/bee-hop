@@ -88,10 +88,11 @@ button:focus-visible,a:focus-visible{outline:3px solid #8a5a12;outline-offset:3p
 .hop-cell.is-filtered{transform:scale(1.04)}
 .hop-cell.is-landing,.hop-cell.is-tool{z-index:3;cursor:pointer}
 .hop-cell.is-hint{z-index:4}
-.hop-cell.is-landing{
-  filter:drop-shadow(0 0 8px #d4ff6aee) drop-shadow(0 0 2px #f6ffc8);
+.hop-cell.is-landing::after{
+  content:"";position:absolute;inset:0;z-index:1;pointer-events:none;
+  background:#3c8f45;opacity:.5;mix-blend-mode:color;
 }
-.hop-cell.is-landing .hop-hex{filter:saturate(1.35) brightness(1.08)}
+.hop-cell.is-selected.is-bee{filter:drop-shadow(0 0 10px #ffe9a2cc)}
 .hop-cell.is-tool{
   filter:
     drop-shadow(1.5px 0 0 #a56b12)
@@ -103,14 +104,25 @@ button:focus-visible,a:focus-visible{outline:3px solid #8a5a12;outline-offset:3p
 .hop-cell.is-landing:active,.hop-cell.is-tool:active,.hop-cell.is-flower:active{transform:scale(.94)}
 .hop-hex{position:absolute;inset:0;z-index:0;pointer-events:none;transform:scale(1.12);transform-origin:center}
 .hop-mark{position:relative;z-index:2;width:72%;pointer-events:none}
-.hop-mark.is-bee,.hop-mark.is-beeWorker{width:86%}
+.hop-mark.is-bee,.hop-mark.is-beeWorker{
+  z-index:5;width:86%;
+  filter:drop-shadow(0 0 6px #ffe56ae6) drop-shadow(0 0 2px #fff8);
+}
+.hop-mark.is-bee::after,.hop-mark.is-beeWorker::after{
+  content:"";position:absolute;left:24%;top:12%;width:26%;height:16%;border-radius:50%;
+  background:linear-gradient(#fff,#fff0);opacity:.75;pointer-events:none;
+}
 .hop-mark.is-flower{width:84%}
 .hop-mark.is-mango{width:58%}
 .hop-mark.is-stoneMoss{width:78%;opacity:1}
 .hop-mark.is-crown{width:40%}
 .hop-cell.is-idle .hop-mark{animation:hop-bee-pulse 1s ease-in-out infinite;transform-origin:center}
-.hop-ring{position:absolute;inset:8%;z-index:2;width:auto;pointer-events:none}
+.hop-ring{position:absolute;inset:8%;z-index:1;width:auto;pointer-events:none}
 .hop-spark{position:absolute;top:0;right:4%;z-index:3;width:34%;pointer-events:none}
+.hop-bee-glint{
+  position:absolute;top:0;right:6%;z-index:6;width:28%;pointer-events:none;
+  animation:hop-sparkle 1.3s ease-in-out infinite;
+}
 .hop-ghost{position:absolute;left:0;top:0;width:var(--hex-w);height:var(--hex-h);z-index:6;pointer-events:none;display:grid;place-items:center;opacity:1}
 .hop-ghost .hop-mark{width:86%}
 .hop-bit,.hop-burst{position:fixed;left:0;top:0;pointer-events:none;background:transparent}

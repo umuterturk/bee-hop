@@ -192,13 +192,14 @@ export default function Board({
         aria-pressed={bee?cell===selected:flowerChoice?filtered===cell:undefined}
         onClick={()=>onCell(cell)}>
         <Sprite name={tile} className="hop-hex"/>
-        {mark&&<Sprite name={mark} className={`hop-mark is-${mark}`}/>}
         {bee&&cell===selected&&<Sprite name="ringDashed" className="hop-ring"/>}
+        {mark&&<Sprite name={mark} className={`hop-mark is-${mark}`}/>}
+        {bee&&cell===selected&&<Sprite name="sparkleSmall" className="hop-bee-glint"/>}
         {hinted&&<Sprite name="sparkleSmall" className="hop-spark"/>}
       </button>;
     })}
     {hopping&&<div className="hop-ghost" ref={ghostRef} style={cellStyle(flight.from??flight.to,width,metrics)}>
-      <Sprite name={flight.kind==='summon'||(flight.from!=null&&round.lead!==flight.to)?'beeWorker':'bee'} className="hop-mark"/>
+      <Sprite name={flight.kind==='summon'||(flight.from!=null&&round.lead!==flight.to)?'beeWorker':'bee'} className={`hop-mark is-${flight.kind==='summon'||(flight.from!=null&&round.lead!==flight.to)?'beeWorker':'bee'}`}/>
     </div>}
   </div>;
 }
