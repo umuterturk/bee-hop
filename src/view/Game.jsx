@@ -182,10 +182,12 @@ export default function Game(){
     setHint(null);setFiltered(null);setMode(null);
     const bee=action.type==='summon'?action.hive:action.to??selected;
     if(action.type!=='seed')setSelectedBee(bee);
-    if(next.pollen.length<current.pollen.length)setJarPulse(value=>value+1);
+    const picked=next.pollen.length<current.pollen.length;
+    if(picked&&progress.settings.reduceMotion)setJarPulse(value=>value+1);
     setFlight({
       kind:action.type,from:action.bee??null,to:action.to??action.hive,over:action.over??null,
-      token:current.turns+1,celebrate:next.pollen.length===0,picked:next.pollen.length<current.pollen.length,jar:jarRef.current
+      token:current.turns+1,celebrate:next.pollen.length===0,picked,jar:jarRef.current,
+      onArrive:picked&&!progress.settings.reduceMotion?()=>setJarPulse(value=>value+1):null
     });
     if(!acted.current){acted.current=true;track('first_action',{levelId:level.id,type:action.type});}
     track(action.type,{levelId:level.id});
@@ -274,8 +276,8 @@ export default function Game(){
           <span>{level.boss?'Boss':'Level'}</span><strong>{String(level.id).padStart(2,'0')}</strong>
         </div>
       </div>
-      <div ref={jarRef} className={`hop-objective ${jarPulse?'is-pulse':''}`} onAnimationEnd={()=>setJarPulse(0)} aria-label={`${pollenLeft(round)} flowers left`}>
-        <span className="hop-objective-art">
+      <div className={`hop-objective ${jarPulse?'is-pulse':''}`} onAnimationEnd={()=>setJarPulse(0)} aria-label={`${pollenLeft(round)} flowers left`}>
+        <span ref={jarRef} className="hop-objective-art">
           <Sprite name="flower" width={36}/>
         </span>
         <p><strong>{pollenLeft(round)}</strong><span>left</span></p>
@@ -289,7 +291,7 @@ export default function Game(){
             </span>)}
           </div>
         </div>
-        <SpriteButton name="buttonHelp" className="hop-help-button" aria-label="How to play" aria-expanded={help} onClick={()=>setHelp(value=>!value)}/>
+        <SpriteButton name="buttonPause" className="hop-help-button" aria-label="Menu" aria-expanded={help} onClick={()=>setHelp(value=>!value)}/>
       </div>
     </header>
 
@@ -306,11 +308,6 @@ export default function Game(){
       {booster('undo','buttonUndo','Undo',{
         count:round.undoLeft,aria:undoLabel,disabled:locked||!undoAvailable,
         onClick:doUndo
-      })}
-      {booster('restart','buttonRestart','Restart',{
-        aria:lifeOffer.spendsLife?'Restart, costs a life':'Restart',
-        disabled:locked||!lifeOffer.ok,
-        onClick:()=>{poke();restart();}
       })}
       {grant.tunnel>0&&booster('tunnel','buttonTunnel','Tunnel',{
         count:round.charges.tunnel,aria:`Tunnel, ${round.charges.tunnel} left`,pressed:mode==='tunnel',
@@ -336,12 +333,16 @@ export default function Game(){
     </div>
 
     {help&&<div className="hop-sheet-backdrop" role="presentation" onClick={event=>{if(event.target===event.currentTarget)setHelp(false);}}>
-      <section className="hop-sheet" role="dialog" aria-label="How to play">
+      <section className="hop-sheet" role="dialog" aria-label="Menu">
         <h2>{level.name}</h2>
         <p className="hop-wave-label">{waveName}{level.boss?' · Boss':''}</p>
-        <p>Every hop crosses one flower and lands on the hex just past it. A soft green tint marks a landing.</p>
-        <p>Undo rewinds one move. Restart, under the field, plays it again. Hint shows a landing that clears the field.</p>
+        <p>Every hop crosses one flower and lands on the hex just past it. A bright pulsing hex marks a landing.</p>
+        <p>Undo rewinds one move. Hint shows a landing that clears the field. Restart, in this menu, plays the field again.</p>
         <p>If no green hexes appear, the bee cannot hop from here. Use a booster or undo. Every field can still be cleared without boosters.</p>
+        <button type="button" className="hop-menu-restart" disabled={locked||!lifeOffer.ok} onClick={()=>{setHelp(false);restart();}}>
+          <Sprite name="buttonRestart" width={52}/>
+          <span>{lifeOffer.spendsLife?'Lose a life and restart':'Restart field'}</span>
+        </button>
         <p className="hop-wave-label" id="hop-levels-label">Levels in this wave</p>
         <div className="hop-tabs" role="group" aria-labelledby="hop-levels-label">
           <button type="button" disabled={level.wave===0} aria-label="Previous wave" onClick={()=>goto(waveStart-4)}>‹</button>
@@ -357,7 +358,6 @@ export default function Game(){
           <label><input type="checkbox" checked={progress.settings.music} onChange={event=>patchSettings({music:event.target.checked})}/> Music</label>
           <label><input type="checkbox" checked={progress.settings.haptics} onChange={event=>patchSettings({haptics:event.target.checked})}/> Haptics</label>
           <label><input type="checkbox" checked={progress.settings.reduceMotion} onChange={event=>patchSettings({reduceMotion:event.target.checked})}/> Reduce motion</label>
-          <button type="button" className="hop-option" disabled={locked||!lifeOffer.ok} onClick={()=>{setHelp(false);restart();}}>{lifeOffer.spendsLife?'Lose a life and restart':'Restart field'}</button>
           <button type="button" className="hop-option" disabled={hearts.count>=HEART_CAP} onClick={()=>setProgress(prev=>({...prev,hearts:grantHeart(prev.hearts,Date.now())}))}>New life</button>
         </div>
       </section>

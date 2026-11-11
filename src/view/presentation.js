@@ -70,12 +70,14 @@ export function boosterCallout({status,mode,jumpCount,otherJumps=0,charges={},un
   return 'hint';
 }
 
-/** Every cell is the same honey comb. A landing is that comb with a green wash. */
+/** Quiet cells stay honey. A landing is the vivid green hex. A flower sits on its own tile. */
 export function hexTile({
-  pollen=false,hive=false,
+  landing=false,pollen=false,hive=false,
   tool=false,mode=null,settledBee=false,worker=false
 }){
-  const tile='hexHoney';
+  let tile='hexHoney';
+  if(pollen)tile='hexFlower';
+  if(landing)tile='hexLanding';
   let mark=null;
   if(settledBee)mark=worker?'beeWorker':'bee';
   else if(tool&&mode==='seed')mark='mango';

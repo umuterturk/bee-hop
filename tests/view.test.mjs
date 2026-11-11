@@ -49,41 +49,47 @@ test('a selected bee with no hops points at the other bee',()=>{
   assert.doesNotMatch(note,/green hex|Plant a flower/i);
 });
 
-test('honey cells stay honey, and a landing is the same comb with a green wash',()=>{
+test('honey cells stay honey, landings use the green hex, and flowers use a flower tile',()=>{
   const empty=hexTile({});
   assert.equal(empty.tile,'hexHoney');
   assert.equal(empty.mark,null);
   const live=hexTile({landing:true});
-  assert.equal(live.tile,'hexHoney');
+  assert.equal(live.tile,'hexLanding');
   assert.equal(live.mark,null);
   const trap=hexTile({landing:true,dead:true});
-  assert.equal(trap.tile,'hexHoney');
+  assert.equal(trap.tile,'hexLanding');
   assert.equal(trap.mark,null);
   const flower=hexTile({pollen:true});
-  assert.equal(flower.tile,'hexHoney');
+  assert.equal(flower.tile,'hexFlower');
   assert.equal(flower.mark,'flower');
   const bee=hexTile({settledBee:true,worker:false});
   assert.equal(bee.tile,'hexHoney');
   assert.equal(bee.mark,'bee');
 });
 
-test('unplayable cells stay full honey and landings use a soft green wash',()=>{
+test('valid landings pulse a bright green glow and the bee draws above its ring',()=>{
   const css=readFileSync(new URL('../src/view/game.css',import.meta.url),'utf8');
   assert.doesNotMatch(css,/has-landings[\s\S]{0,220}brightness/);
   assert.doesNotMatch(css,/\.hop-cell\.is-dead\{[^}]*grayscale/);
   assert.doesNotMatch(css,/saturate\(1\.35\)/);
-  assert.match(css,/\.hop-cell\.is-landing::after\{[^}]*mix-blend-mode:\s*color/);
+  assert.match(css,/hop-landing-pulse/);
+  assert.match(css,/\.hop-cell\.is-landing\{[^}]*drop-shadow/);
   const bee=css.match(/\.hop-mark\.is-bee,\.hop-mark\.is-beeWorker\{[^}]*z-index:\s*(\d+)/);
   const ring=css.match(/\.hop-ring\{[^}]*z-index:\s*(\d+)/);
   assert.ok(bee&&ring);
   assert.ok(Number(bee[1])>Number(ring[1]));
 });
 
-test('restart sits under the field with undo and hint',()=>{
+test('restart lives in the menu, not the booster row',()=>{
   const source=readFileSync(new URL('../src/view/Game.jsx',import.meta.url),'utf8');
   const dock=source.slice(source.indexOf('aria-label="Boosters"'),source.indexOf('hop-sheet-backdrop'));
-  assert.match(dock,/buttonRestart/);
-  assert.match(dock,/Restart/);
+  assert.doesNotMatch(dock,/buttonRestart/);
+  assert.doesNotMatch(dock,/>Restart</);
+  const sheetStart=source.indexOf('hop-sheet-backdrop');
+  const sheet=source.slice(sheetStart,source.indexOf("status==='won'",sheetStart));
+  assert.match(sheet,/buttonRestart/);
+  assert.match(sheet,/Restart field/);
+  assert.match(sheet,/restart\(\)/);
 });
 
 test('a stuck field lets the player spend a life, including the last one',()=>{
@@ -116,9 +122,12 @@ test('collecting a flower plans a sparkle burst',()=>{
   const board=readFileSync(new URL('../src/view/Board.jsx',import.meta.url),'utf8');
   assert.match(board,/collectBurst/);
   assert.match(board,/picked/);
-  const ring=board.indexOf('ringDashed');
-  const mark=board.indexOf('hop-mark is-');
-  assert.ok(ring!==-1&&mark!==-1&&ring<mark);
+  const pin=board.indexOf('hop-bee-pin');
+  const ring=board.indexOf('ringDashed',pin);
+  const mark=board.indexOf('hop-mark is-',pin);
+  assert.ok(pin!==-1&&ring!==-1&&mark!==-1&&ring<mark);
+  assert.match(board,/onArrive/);
+  assert.match(board,/scaleX/);
 });
 
 test('the screenshot board (last flower, bee off-line) is still playing with zero hops',()=>{
