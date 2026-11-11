@@ -180,6 +180,11 @@ button:focus-visible,a:focus-visible{outline:3px solid #8a5a12;outline-offset:3p
 .hop-sheet h2{margin:0 0 8px;font-family:"Lilita One",system-ui,sans-serif;font-size:22px;font-weight:400;color:#7a4e12}
 .hop-settings{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
 .hop-settings label{display:flex;align-items:center;gap:8px;min-height:40px;font-weight:800}
+.hop-settings .hop-life{
+  grid-column:1 / -1;min-height:40px;border-radius:12px;border:1px solid #e3d6ae;
+  background:#fff8e4;color:#8a5a12;font-weight:800;
+}
+.hop-settings .hop-life:disabled{opacity:.38}
 .hop-tabs{display:flex;gap:6px;align-items:center;margin:10px 0}
 .hop-tabs button{
   flex:1;min-height:40px;border-radius:12px;border:1px solid #e3d6ae;

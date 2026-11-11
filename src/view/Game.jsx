@@ -5,14 +5,13 @@ import {legalJumps,seedTargets,statusOf,summonTargets,tunnelTargets} from '../en
 import {commit,newRound,spendDance,toBoard,undo} from '../session/round.js';
 import {findHint} from '../session/hint.js';
 import {loadProgress,saveProgress} from '../session/progress.js';
-import {HEART_CAP,freshHearts,heartWait,refillHearts,spendHeart} from '../session/hearts.js';
+import {HEART_CAP,freshHearts,grantHeart,heartWait,refillHearts,spendHeart} from '../session/hearts.js';
 import {track} from '../services/analytics.js';
 import {playCue,setMusic,unlockAudio} from '../services/audio.js';
 import {buzz} from '../services/haptics.js';
 import {boardNote,boosterCallout,deadEndCells,earnedBadges,pollenLeft} from './presentation.js';
 import Board from './Board.jsx';
-import {SHEET_URL,Sprite,SpriteButton} from './Sprite.jsx';
-import {spriteFitStyle} from './sprites.js';
+import {Sprite,SpriteButton,SpriteSurface} from './Sprite.jsx';
 
 const BADGE_SPRITE={pure:'heart',clean:'leaf',boss:'crown'};
 
@@ -351,11 +350,13 @@ export default function Game(){
             onClick={()=>goto(entry.id)}>{entry.id}</button>)}
           <button type="button" disabled={level.wave===7||waveStart+6>progress.unlocked} aria-label="Next wave" onClick={()=>goto(waveStart+6)}>›</button>
         </div>
-        <div className="hop-settings">
+        <p className="hop-wave-label" id="hop-options-label">Options</p>
+        <div className="hop-settings" role="group" aria-labelledby="hop-options-label">
           <label><input type="checkbox" checked={progress.settings.sound} onChange={event=>patchSettings({sound:event.target.checked})}/> Sound</label>
           <label><input type="checkbox" checked={progress.settings.music} onChange={event=>patchSettings({music:event.target.checked})}/> Music</label>
           <label><input type="checkbox" checked={progress.settings.haptics} onChange={event=>patchSettings({haptics:event.target.checked})}/> Haptics</label>
           <label><input type="checkbox" checked={progress.settings.reduceMotion} onChange={event=>patchSettings({reduceMotion:event.target.checked})}/> Reduce motion</label>
+          <button type="button" className="hop-life" disabled={hearts.count>=HEART_CAP} onClick={()=>setProgress(prev=>({...prev,hearts:grantHeart(prev.hearts,Date.now())}))}>New life</button>
         </div>
       </section>
     </div>}
@@ -363,16 +364,16 @@ export default function Game(){
     {status==='won'&&<div className="hop-overlay" role="presentation">
       <section className="hop-win" role="dialog" aria-labelledby="hop-win-title">
         <p className="hop-kicker">Field cleared</p>
-        <div className="hop-win-banner" style={spriteFitStyle('bannerGold',SHEET_URL)}>
+        <SpriteSurface name="bannerGold" className="hop-win-banner">
           <Sprite name="sparkleSmall" width={22} className="hop-win-spark is-left"/>
           <h2 id="hop-win-title">Sweet success</h2>
           <Sprite name="sparkleMedium" width={28} className="hop-win-spark is-right"/>
-        </div>
+        </SpriteSurface>
         <p>{round.turns} {round.turns===1?'hop':'hops'}.</p>
         {badges.length>0&&<ul className="hop-badges">{badges.map(badge=><li key={badge.id}><Sprite name={BADGE_SPRITE[badge.id]} width={22}/>{badge.name}</li>)}</ul>}
-        <button ref={nextRef} type="button" className="hop-next" style={spriteFitStyle('buttonGold',SHEET_URL)} disabled={locked} onClick={()=>goto(level.id===LEVELS.length?1:level.id+1)}>
+        <SpriteSurface as="button" ref={nextRef} type="button" className="hop-next" disabled={locked} onClick={()=>goto(level.id===LEVELS.length?1:level.id+1)} name="buttonGold">
           {level.id===LEVELS.length?'Play the first field':'Next field'}
-        </button>
+        </SpriteSurface>
       </section>
     </div>}
 
@@ -382,7 +383,7 @@ export default function Game(){
         <h2 id="hop-stuck-title" style={{margin:'6px 0 0',fontFamily:'"Lilita One",system-ui,sans-serif',fontSize:28,fontWeight:400,color:'#7a4e12'}}>Stuck!</h2>
         <p>Undo a move or restart the field.</p>
         <div className="hop-stuck-actions">
-          <button type="button" className="hop-next" style={spriteFitStyle('buttonGold',SHEET_URL)} disabled={locked||!round.past.length||(round.undoLeft!==null&&round.undoLeft<=0)} onClick={doUndo}>Undo</button>
+          <SpriteSurface as="button" type="button" className="hop-next" name="buttonGold" disabled={locked||!round.past.length||(round.undoLeft!==null&&round.undoLeft<=0)} onClick={doUndo}>Undo</SpriteSurface>
           <button type="button" className="hop-ghost-btn" disabled={locked} onClick={restart}>Restart</button>
         </div>
       </section>
