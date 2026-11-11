@@ -20,6 +20,20 @@ function cellStyle(cell,width,metrics){
 function place(cell,width){
   return `row ${Math.floor(cell/width)+1}, column ${cell%width+1}`;
 }
+function tapBurst(element){
+  if(!element)return;
+  const box=element.getBoundingClientRect();
+  const ring=document.createElement('span');
+  ring.className='hop-tap-ring';
+  const size=Math.round(Math.max(box.width,box.height)*1.08);
+  ring.style.width=`${size}px`;
+  ring.style.height=`${size}px`;
+  document.body.appendChild(ring);
+  gsap.fromTo(ring,
+    {x:box.left+box.width/2,y:box.top+box.height/2,xPercent:-50,yPercent:-50,scale:.28,opacity:.95},
+    {scale:1.7,opacity:0,duration:.36,ease:'power2.out',onComplete(){ring.remove();}}
+  );
+}
 
 export default function Board({
   width,height,round,selected,jumps,pollenChoices,toolCells,hintStep,mode,
@@ -49,7 +63,7 @@ export default function Board({
     };
     const end=center(toEl);
     const fromEl=flight.from==null?null:cellRefs.current[flight.from];
-    const duration=flight.celebrate?0.62:0.26;
+    const duration=flight.celebrate?0.74:0.42;
     let bit=null;
     const sparks=[];
     let live=true;
@@ -102,12 +116,15 @@ export default function Board({
       const start=center(ghost);
       const dx=end.x-start.x;
       const dy=end.y-start.y;
-      const lift=flight.celebrate?18:12;
+      const lift=flight.celebrate?36:28;
       let motion;
+      let flowerFlying=false;
       if(flight.kind==='jump'&&fromEl){
         motion=gsap.timeline();
-        motion.fromTo(ghost,{x:0,y:0,scale:1,opacity:1},{x:dx,y:dy-lift,scale:flight.celebrate?1.22:flight.picked?1.14:1.08,duration:duration*.62,ease:'power2.out'});
-        motion.to(ghost,{x:dx,y:dy,scale:1,duration:duration*.38,ease:'bounce.out'});
+        motion.to(ghost,{scaleX:1.2,scaleY:.8,duration:.07,ease:'power1.in'});
+        motion.to(ghost,{x:dx,y:dy-lift,scaleX:.86,scaleY:1.24,duration:duration*.52,ease:'power2.out'});
+        motion.to(ghost,{x:dx,y:dy,scaleX:1.28,scaleY:.7,duration:duration*.3,ease:'power3.in'});
+        motion.to(ghost,{scaleX:1,scaleY:1,duration:.18,ease:'back.out(2.8)'});
       }else if(flight.kind==='tunnel'&&fromEl){
         motion=gsap.timeline();
         motion.to(ghost,{scale:.2,opacity:0,duration:.16,ease:'power1.in'});
@@ -116,41 +133,52 @@ export default function Board({
       }else{
         motion=gsap.fromTo(ghost,{scale:.2,opacity:0},{scale:1,opacity:1,duration:.48,ease:'back.out(1.8)'});
       }
-      motion.eventCallback('onComplete',()=>{if(live)setSettled(flight.token);});
+      motion.eventCallback('onComplete',()=>{
+        if(live)setSettled(flight.token);
+        if(flight.picked&&!flowerFlying)flight.onArrive?.();
+      });
       if(flight.kind==='jump'&&flight.over!=null&&flight.picked){
         const overEl=cellRefs.current[flight.over];
         const overBox=overEl?.getBoundingClientRect();
         if(overBox){
           const originX=overBox.left+overBox.width/2;
           const originY=overBox.top+overBox.height/2;
-          burstAt(originX,originY,flight.celebrate?1.2:1,0);
-          if(flight.celebrate)burstAt(originX,originY,.8,Math.PI/8);
+          burstAt(originX,originY,flight.celebrate?1.45:1.25,0);
+          if(flight.celebrate)burstAt(originX,originY,1,Math.PI/8);
           const jarBox=flight.jar?.getBoundingClientRect();
           if(jarBox?.width){
+            flowerFlying=true;
             const launch=url=>{
-              if(!live||!url)return;
+              if(!live||!url){flight.onArrive?.();return;}
               bit=document.createElement('span');
               bit.className='hop-bit';
-              paintBit(bit,'flower',url,flight.celebrate?44:34);
+              paintBit(bit,'flower',url,flight.celebrate?56:48);
               document.body.appendChild(bit);
-              const pop=flight.celebrate?2.05:1.75;
+              const jarX=jarBox.left+jarBox.width/2;
+              const jarY=jarBox.top+jarBox.height/2;
+              const pop=flight.celebrate?2.5:2.2;
               const bloom=gsap.timeline();
               bloom.fromTo(bit,
-                {x:originX,y:originY,xPercent:-50,yPercent:-50,scale:.3,rotation:0,opacity:1},
-                {scale:pop,rotation:flight.celebrate?-14:10,duration:flight.celebrate?0.26:0.16,ease:'back.out(2.8)'});
+                {x:originX,y:originY,xPercent:-50,yPercent:-50,scale:.25,rotation:-16,opacity:1},
+                {scale:pop,rotation:14,duration:.22,ease:'back.out(3.4)'});
+              bloom.to(bit,{y:originY-34,scale:pop*.84,rotation:6,duration:.12,ease:'power1.out'});
               bloom.to(bit,{
-                x:jarBox.left+jarBox.width/2,y:jarBox.top+jarBox.height/2,scale:flight.celebrate?0.72:0.4,rotation:0,opacity:0,
-                duration:flight.celebrate?0.78:0.46,ease:'power2.in',onComplete(){
+                x:jarX,y:jarY,scale:flight.celebrate?.92:.6,rotation:0,opacity:1,
+                duration:flight.celebrate?.68:.46,ease:'power2.in',
+                onComplete(){flight.onArrive?.();}
+              });
+              bloom.to(bit,{
+                scale:.14,opacity:0,duration:.12,ease:'power1.in',onComplete(){
                   bit?.remove();
-                  if(live)burstAt(jarBox.left+jarBox.width/2,jarBox.top+jarBox.height/2,flight.celebrate?0.7:0.5,Math.PI/10);
+                  if(live)burstAt(jarX,jarY,flight.celebrate?.95:.7,Math.PI/10);
                 }
               });
             };
             const ready=peekFrame('flower');
             if(ready)launch(ready);
-            else frameUrl('flower').then(launch);
-          }
-        }
+            else frameUrl('flower').then(url=>{if(live)launch(url);});
+          }else{flowerFlying=true;flight.onArrive?.();}
+        }else{flowerFlying=true;flight.onArrive?.();}
       }
     });
     return ()=>{
@@ -177,6 +205,7 @@ export default function Board({
       const {tile,mark}=hexTile({
         landing,pollen,hive,tool,mode,settledBee:bee,worker
       });
+      const piece=mark==='bee'||mark==='beeWorker'?null:mark;
       let label=`Empty hex, ${place(cell,width)}`;
       if(occupied||bee)label=`${worker?'Worker bee':'Bee'} at ${place(cell,width)}${cell===selected?', selected':''}`;
       else if(tool&&mode==='tunnel')label=`Burrow to ${place(cell,width)}`;
@@ -190,13 +219,24 @@ export default function Board({
         className={`hop-cell ${bee?'is-bee':''} ${worker?'is-worker':''} ${bee&&cell===selected?'is-selected':''} ${idle&&bee&&cell===selected?'is-idle':''} ${pollen?'is-pollen':''} ${hive?'is-hive':''} ${flowerChoice?'is-flower':''} ${filtered===cell?'is-filtered':''} ${landing?'is-landing':''} ${tool?`is-tool is-${mode}`:''} ${hinted?'is-hint':''} ${flight?.kind==='seed'&&flight.to===cell?'is-new':''}`}
         style={cellStyle(cell,width,metrics)} disabled={!interactive} aria-label={label}
         aria-pressed={bee?cell===selected:flowerChoice?filtered===cell:undefined}
+        onPointerDown={event=>{if(!reduced&&(landing||tool||flowerChoice))tapBurst(event.currentTarget);}}
         onClick={()=>onCell(cell)}>
         <Sprite name={tile} className="hop-hex"/>
-        {bee&&cell===selected&&<Sprite name="ringDashed" className="hop-ring"/>}
-        {mark&&<Sprite name={mark} className={`hop-mark is-${mark}`}/>}
-        {bee&&cell===selected&&<Sprite name="sparkleSmall" className="hop-bee-glint"/>}
+        {landing&&<Sprite name="sparkleSmall" className="hop-landing-spark"/>}}
+        {piece&&<Sprite name={piece} className={`hop-mark is-${piece}`}/>}
         {hinted&&<Sprite name="sparkleSmall" className="hop-spark"/>}
       </button>;
+    })}
+    {round.bees.map(cell=>{
+      if(hopping&&(cell===flight.from||cell===flight.to))return null;
+      const worker=cell!==round.lead;
+      const picked=cell===selected;
+      return <div key={`bee-${cell}`} className={`hop-bee-pin ${picked?'is-selected':''} ${idle&&picked?'is-idle':''} ${worker?'is-worker':''}`} style={cellStyle(cell,width,metrics)} aria-hidden="true">
+        <span className="hop-bee-shadow"/>
+        {picked&&<Sprite name="ringDashed" className="hop-ring"/>}
+        <Sprite name={worker?'beeWorker':'bee'} className={`hop-mark is-${worker?'beeWorker':'bee'}`}/>
+        {picked&&<Sprite name="sparkleSmall" className="hop-bee-glint"/>}
+      </div>;
     })}
     {hopping&&<div className="hop-ghost" ref={ghostRef} style={cellStyle(flight.from??flight.to,width,metrics)}>
       <Sprite name={flight.kind==='summon'||(flight.from!=null&&round.lead!==flight.to)?'beeWorker':'bee'} className={`hop-mark is-${flight.kind==='summon'||(flight.from!=null&&round.lead!==flight.to)?'beeWorker':'bee'}`}/>
