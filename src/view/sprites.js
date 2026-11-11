@@ -52,8 +52,24 @@ export const SPRITES=Object.freeze({
   barHoney:box(64,933,627,122)
 })
 
+function cssNum(value){
+  return `${Math.round(value*1000)/1000}`
+}
 function cssPx(value){
-  return `${Math.round(value*1000)/1000}px`
+  return `${cssNum(value)}px`
+}
+export function spriteFitStyle(name,url){
+  const sprite=SPRITES[name]
+  if(!sprite)throw new Error(`Unknown sprite: ${name}`)
+  const spanX=SPRITE_SHEET.width-sprite.w
+  const spanY=SPRITE_SHEET.height-sprite.h
+  return {
+    backgroundImage:`url('${url}')`,
+    backgroundRepeat:'no-repeat',
+    backgroundSize:`${cssNum(SPRITE_SHEET.width/sprite.w*100)}% ${cssNum(SPRITE_SHEET.height/sprite.h*100)}%`,
+    backgroundPosition:`${cssNum(spanX?sprite.x/spanX*100:0)}% ${cssNum(spanY?sprite.y/spanY*100:0)}%`,
+    aspectRatio:`${sprite.w} / ${sprite.h}`
+  }
 }
 
 export function spriteStyle(name,url,displayWidth){

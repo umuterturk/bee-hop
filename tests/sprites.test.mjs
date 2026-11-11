@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {SPRITE_SHEET,SPRITES,spriteStyle} from '../src/view/sprites.js';
+import {SPRITE_SHEET,SPRITES,spriteFitStyle,spriteStyle} from '../src/view/sprites.js';
 
 test('every painted frame sits inside the sheet and has its own box',()=>{
   const seen=new Set();
@@ -27,4 +27,13 @@ test('spriteStyle scales hexHoney so the frame width is the display width',()=>{
   assert.equal(style.backgroundSize,'724px 543px');
   assert.equal(style.backgroundImage,"url('/sheets/sprite-sheet.png')");
   assert.throws(()=>spriteStyle('missing','/sheets/sprite-sheet.png',92),/missing/);
+});
+test('spriteFitStyle fills its box with one frame',()=>{
+  const style=spriteFitStyle('hexHoney','/sheets/sprite-sheet.png');
+  assert.equal(style.backgroundRepeat,'no-repeat');
+  assert.equal(style.backgroundImage,"url('/sheets/sprite-sheet.png')");
+  assert.equal(style.aspectRatio,'184 / 208');
+  assert.equal(style.backgroundSize,'786.957% 522.115%');
+  assert.equal(style.backgroundPosition,'1.82% 2.392%');
+  assert.throws(()=>spriteFitStyle('missing','/sheets/sprite-sheet.png'),/missing/);
 });
