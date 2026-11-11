@@ -70,12 +70,12 @@ export function boosterCallout({status,mode,jumpCount,otherJumps=0,charges={},un
   return 'hint';
 }
 
-/** Honey for every quiet cell. A legal landing, trap or not, uses the vivid green hex. */
+/** Every cell is the same honey comb. A landing is that comb with a green wash. */
 export function hexTile({
-  landing=false,pollen=false,hive=false,
+  pollen=false,hive=false,
   tool=false,mode=null,settledBee=false,worker=false
 }){
-  const tile=landing?'hexLanding':'hexHoney';
+  const tile='hexHoney';
   let mark=null;
   if(settledBee)mark=worker?'beeWorker':'bee';
   else if(tool&&mode==='seed')mark='mango';
