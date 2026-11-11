@@ -28,6 +28,19 @@ export function spendHeart(hearts,now){
   if(current.count<=0)return current
   return {count:current.count-1,nextAt:current.nextAt??now+HEART_REFILL_MS}
 }
+/** Spend one life to replay a touched attempt. The replay stays playable even
+ * when that life was the last one. An untouched field and a finished field are free.
+ * A life already taken on this attempt is not taken again. */
+export function applyLifeRestart(hearts,round,status,now){
+  const touched=!!(round?.turns||round?.usedUndo||round?.usedTool||round?.past?.length)
+  const needsLife=touched&&status!=='won'&&!round?.failedHeart
+  if(!needsLife)return {ok:true,hearts,lifePaid:touched&&status!=='won'&&!!round?.failedHeart,spendsLife:false}
+  if(!hearts||hearts.count<=0)return {ok:false,hearts,lifePaid:false,spendsLife:true}
+  return {ok:true,hearts:spendHeart(hearts,now),lifePaid:true,spendsLife:true}
+}
+export function attemptLocked(hearts,round){
+  return (hearts?.count??0)<=0&&!round?.lifePaid
+}
 export function heartWait(hearts,now){
   const current=refillHearts(hearts,now)
   if(current.nextAt==null)return ''

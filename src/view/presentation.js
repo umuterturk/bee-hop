@@ -1,19 +1,44 @@
 import {lessonFor} from '../content/campaign.js';
-import {statusOf,step} from '../engine/abilities.js';
 
-/** Landing cells whose every listed jump leaves the board stuck. */
-export function deadEndCells(board,jumps){
-  const byLanding=new Map();
-  for(const move of jumps){
-    const list=byLanding.get(move.to);
-    if(list)list.push(move);
-    else byLanding.set(move.to,[move]);
+const BURST_SPRITES=['sparkleLarge','sparkleMedium','sparkleSmall','sparkleMedium','sparkleSmall','sparkleLarge','sparkleSmall','sparkleMedium'];
+
+/** Sparkle bits that burst from a collected flower. Positions stay distinct. */
+export function collectBurst(scale=1,turnOffset=0){
+  return BURST_SPRITES.map((sprite,index)=>{
+    const turn=(Math.PI*2*index)/BURST_SPRITES.length+turnOffset;
+    const reach=(index%2?48:34)*scale;
+    return {
+      sprite,
+      dx:Math.round(Math.cos(turn)*reach),
+      dy:Math.round(Math.sin(turn)*reach-8*scale),
+      delay:index*0.02,
+      spin:index%2?180:-200,
+      size:Math.round((sprite==='sparkleLarge'?40:sprite==='sparkleMedium'?26:18)*scale)
+    };
+  });
+}
+
+/** Choice shown when the field has no hops and no tools left. */
+export function stuckChoice({undoAvailable=false,hearts}){
+  const lives=hearts?.count??0;
+  if(lives<=0){
+    return {
+      canRestart:false,
+      canUndo:!!undoAvailable,
+      title:'No hops left',
+      body:undoAvailable
+        ?'Undo a move, or wait for a life and play this field again.'
+        :'Wait for a life, then lose it to play this field again.'
+    };
   }
-  const dead=new Set();
-  for(const [to,moves] of byLanding){
-    if(moves.every(move=>statusOf(step(board,move))==='stuck'))dead.add(to);
-  }
-  return dead;
+  return {
+    canRestart:true,
+    canUndo:!!undoAvailable,
+    title:'No hops left',
+    body:undoAvailable
+      ?'Lose a life to play this field again, or undo a move.'
+      :'Lose a life to play this field again.'
+  };
 }
 
 export function earnedBadges(round,level){
@@ -26,7 +51,7 @@ export function earnedBadges(round,level){
 export function hintCopy(hint){
   if(!hint)return '';
   if(hint.outcome==='looking')return 'Looking for a route that clears the field.';
-  if(hint.outcome==='none')return 'No winning route from here. Undo or restart.';
+  if(hint.outcome==='none')return 'No winning route from here. Undo, or lose a life to restart.';
   if(hint.outcome==='unknown')return 'This field is too tangled for a hint. Try Undo.';
   const step=hint.steps[hint.layer]||hint.steps[0];
   const later=hint.layer>0;
@@ -45,35 +70,37 @@ export function boosterCallout({status,mode,jumpCount,otherJumps=0,charges={},un
   return 'hint';
 }
 
-/** One honey hex for every cell. Marks show the bee, flower, hive, and stone traps. */
+/** Honey for every quiet cell. A legal landing, trap or not, uses the vivid green hex. */
 export function hexTile({
-  landing=false,dead=false,pollen=false,hive=false,
+  landing=false,pollen=false,hive=false,
   tool=false,mode=null,settledBee=false,worker=false
 }){
-  const tile='hexHoney';
+  const tile=landing?'hexLanding':'hexHoney';
   let mark=null;
   if(settledBee)mark=worker?'beeWorker':'bee';
   else if(tool&&mode==='seed')mark='mango';
   else if(pollen)mark='flower';
-  else if(landing&&dead)mark='stoneMoss';
   else if(hive)mark='crown';
   return {tile,mark};
 }
 
-export function boardNote({status,hint,mode,filtered,level,round,jumpCount=null,otherJumps=0}){
+export function boardNote({status,hint,mode,filtered,level,round,jumpCount=null,otherJumps=0,undoAvailable=true}){
   if(status==='won')return 'Every flower is in the jar.';
   if(hint)return hintCopy(hint);
   if(mode==='tunnel')return 'Tap a glowing hex to burrow. It collects nothing.';
   if(mode==='seed')return 'Tap an empty hex to plant a flower you must collect.';
   if(mode==='summon')return 'Tap the hive to call a worker bee.';
-  if(status==='stuck')return 'No jumps or tools left. Undo or restart.';
+  if(status==='stuck')return undoAvailable
+    ?'No jumps or tools left. Lose a life to play again, or undo.'
+    :'No jumps or tools left. Lose a life to play again.';
   if(jumpCount===0){
     if(otherJumps>0)return 'This bee has no hop. Tap the other bee.';
     const charges=round.charges||{};
-    if(charges.seed>0)return 'No hops from here. Plant a flower, or undo.';
-    if(charges.tunnel>0)return 'No hops from here. Burrow, or undo.';
-    if(charges.worker>0)return 'No hops from here. Call a worker, or undo.';
-    return 'No hops from here. Undo or restart.';
+    const giveUp=undoAvailable?'undo':'lose a life to play again';
+    if(charges.seed>0)return `No hops from here. Plant a flower, or ${giveUp}.`;
+    if(charges.tunnel>0)return `No hops from here. Burrow, or ${giveUp}.`;
+    if(charges.worker>0)return `No hops from here. Call a worker, or ${giveUp}.`;
+    return undoAvailable?'No hops from here. Undo, or lose a life to play again.':'No hops from here. Lose a life to play again.';
   }
   if(filtered)return 'Tap a green hex to land, or tap the bee to see every hop.';
   if(round.turns===0&&!round.usedUndo){
