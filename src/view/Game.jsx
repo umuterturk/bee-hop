@@ -9,17 +9,12 @@ import {HEART_CAP,freshHearts,heartWait,refillHearts,spendHeart} from '../sessio
 import {track} from '../services/analytics.js';
 import {playCue,setMusic,unlockAudio} from '../services/audio.js';
 import {buzz} from '../services/haptics.js';
-import {boardNote,deadEndCells,earnedBadges,jarFill,pollenLeft} from './presentation.js';
+import {boardNote,boosterCallout,deadEndCells,earnedBadges,pollenLeft} from './presentation.js';
 import Board from './Board.jsx';
 import {SHEET_URL,Sprite,SpriteButton} from './Sprite.jsx';
 import {spriteFitStyle} from './sprites.js';
 
 const BADGE_SPRITE={pure:'heart',clean:'leaf',boss:'crown'};
-function jarName(fill){
-  if(fill>=1)return 'jarFull';
-  if(fill>0)return 'jarHalf';
-  return 'jarEmpty';
-}
 
 function boot(){
   const saved=loadProgress();
@@ -64,13 +59,20 @@ export default function Game(){
   const board=toBoard(round);
   const status=statusOf(board);
   const selected=round.bees.includes(selectedBee)?selectedBee:round.bees[0];
-  const allJumps=legalJumps(board).filter(move=>move.bee===selected);
+  const boardJumps=legalJumps(board);
+  const allJumps=boardJumps.filter(move=>move.bee===selected);
   const jumps=filtered==null?allJumps:allJumps.filter(move=>move.over===filtered);
+  const otherJumps=boardJumps.length-allJumps.length;
   const deadEnds=status==='playing'&&!mode?deadEndCells(board,jumps):new Set();
   const toolCells=mode==='tunnel'?tunnelTargets(board,selected):mode==='seed'?seedTargets(board,selected):mode==='summon'?summonTargets(board):[];
   const hintStep=hint?.outcome==='win'?hint.steps[hint.layer]:null;
   const reduced=progress.settings.reduceMotion;
-  const note=boardNote({status,hint,mode,filtered:filtered!=null,level,round});
+  const note=boardNote({status,hint,mode,filtered:filtered!=null,level,round,jumpCount:jumps.length,otherJumps});
+  const noHops=status==='playing'&&!mode&&jumps.length===0&&otherJumps===0;
+  const callout=boosterCallout({
+    status,mode,jumpCount:jumps.length,otherJumps,charges:round.charges,
+    undoAvailable:round.past.length>0&&(round.undoLeft===null||round.undoLeft>0)
+  });
   const waveName=WAVE_NAMES[level.wave];
   const waveStart=level.wave*5;
   const hearts=refillHearts(progress.hearts,now);
@@ -252,16 +254,20 @@ export default function Game(){
     if(landings.length===1)return play(landings[0]);
     if(moves.some(move=>move.over===cell))setFiltered(filterRef.current===cell?null:cell);
   }
-  function toolButton(id,sprite,label,left){
-    return <SpriteButton name={sprite} className={`hop-tool is-${id}`} aria-label={`${label}, ${left} left`} aria-pressed={mode===id} disabled={locked||left<=0}
-      onClick={()=>{poke();setFiltered(null);setMode(mode===id?null:id);}}><span className="hop-count">{left}</span></SpriteButton>;
+  function booster(id,sprite,label,{count,disabled,pressed,onClick,aria}){
+    return <div className={`hop-booster is-${id} ${callout===id?'is-callout':''}`}>
+      <SpriteButton name={sprite} className={`hop-tool is-${id}`} aria-label={aria||label} aria-pressed={pressed} disabled={disabled} onClick={onClick}>
+        {count!=null&&<span className="hop-count">{count}</span>}
+      </SpriteButton>
+      <span className="hop-tool-label">{label}</span>
+    </div>;
   }
 
   const badges=status==='won'?earnedBadges(round,level):[];
   const undoLabel=round.undoLeft==null?'Undo':`Undo ${round.undoLeft}`;
   const hintLabel=round.danceLeft==null?'Hint':`Hint ${round.danceLeft}`;
 
-  return <div className={`hop ${level.boss?'is-boss':''} ${reduced?'is-reduced':''} ${locked?'is-tired':''}`} data-status={status} data-level={level.id}
+  return <div className={`hop ${level.boss?'is-boss':''} ${reduced?'is-reduced':''} ${locked?'is-tired':''} ${noHops?'is-no-hops':''}`} data-status={status} data-level={level.id}
     onPointerDown={poke}>
     <header className="hop-hud">
       <div className="hop-hud-level">
@@ -272,24 +278,26 @@ export default function Game(){
         </div>
         <button type="button" className="hop-hud-nav" aria-label="Next level" disabled={!nextUnlocked||locked} onClick={()=>goto(nextUnlocked)}>›</button>
       </div>
-      <div className="hop-goal">
-        <div ref={jarRef} className={jarPulse?'hop-jar is-pulse':'hop-jar'} onAnimationEnd={()=>setJarPulse(0)}>
-          <Sprite name={jarName(jarFill(round))} width={44}/>
-        </div>
+      <div ref={jarRef} className={`hop-objective ${jarPulse?'is-pulse':''}`} onAnimationEnd={()=>setJarPulse(0)} aria-label={`${pollenLeft(round)} flowers left`}>
+        <span className="hop-objective-art">
+          <Sprite name="flower" width={28}/>
+        </span>
         <p><strong>{pollenLeft(round)}</strong><span>left</span></p>
       </div>
       <div className="hop-hud-right">
         <div className="hop-hearts" aria-label={`${hearts.count} of ${HEART_CAP} hearts`}>
           <div className="hop-heart-row">
-            {Array.from({length:HEART_CAP},(_,index)=><Sprite key={index} name={index<hearts.count?'heart':'heartOutline'} width={22}/>)}
+            {Array.from({length:HEART_CAP},(_,index)=><span key={index} className="hop-heart-slot">
+              <Sprite name={index<hearts.count?'heart':'heartOutline'} width={22}/>
+              {waitLabel&&index===hearts.count&&<span className="hop-heart-wait">{waitLabel}</span>}
+            </span>)}
           </div>
-          {waitLabel&&<p className="hop-heart-wait">{waitLabel}</p>}
         </div>
         <SpriteButton name="buttonHelp" className="hop-help-button" aria-label="How to play" aria-expanded={help} onClick={()=>setHelp(value=>!value)}/>
       </div>
     </header>
 
-    <div className="hop-stage">
+    <div className={`hop-stage ${jumps.length&&!mode?'has-landings':''} ${noHops?'is-no-hops':''}`}>
       <Board key={deal} width={level.width} height={level.height} round={round} selected={selected} jumps={jumps}
         pollenChoices={allJumps.map(move=>move.over)} toolCells={toolCells} hintStep={hintStep} mode={mode}
         flight={flight} reduced={reduced} nudge={nudge&&jumps.length===1} status={status}
@@ -298,30 +306,42 @@ export default function Game(){
 
     <p className="hop-note" aria-live="polite">{locked?`Out of hearts · ${waitLabel}`:note}</p>
 
-    <div className="hop-dock">
-      <div className="hop-tools">
-        <SpriteButton name="buttonUndo" aria-label={undoLabel} onClick={doUndo} disabled={locked||!round.past.length||(round.undoLeft!==null&&round.undoLeft<=0)}>
-          {round.undoLeft!=null&&<span className="hop-count">{round.undoLeft}</span>}
-        </SpriteButton>
-        {grant.tunnel>0&&toolButton('tunnel','buttonTunnel','Tunnel',round.charges.tunnel)}
-        {grant.seed>0&&toolButton('seed','buttonSeed','Seed',round.charges.seed)}
-        {grant.worker>0&&toolButton('summon','buttonWorker','Worker',round.charges.worker)}
-      </div>
-      <div className="hop-secondary">
-        <SpriteButton name="buttonHint" aria-label={hint?.outcome==='win'&&hint.layer+1<hint.steps.length?'Look ahead':hintLabel} onClick={doHint} disabled={locked||status!=='playing'||(round.danceLeft!==null&&round.danceLeft<=0)}>
-          {round.danceLeft!=null&&<span className="hop-count">{round.danceLeft}</span>}
-        </SpriteButton>
-        <SpriteButton name="buttonRestart" aria-label="Restart" onClick={restart} disabled={locked}/>
-      </div>
+    <div className="hop-dock" role="toolbar" aria-label="Boosters">
+      {booster('undo','buttonUndo','Undo',{
+        count:round.undoLeft,aria:undoLabel,disabled:locked||!round.past.length||(round.undoLeft!==null&&round.undoLeft<=0),
+        onClick:doUndo
+      })}
+      {grant.tunnel>0&&booster('tunnel','buttonTunnel','Tunnel',{
+        count:round.charges.tunnel,aria:`Tunnel, ${round.charges.tunnel} left`,pressed:mode==='tunnel',
+        disabled:locked||round.charges.tunnel<=0,
+        onClick:()=>{poke();setFiltered(null);setMode(mode==='tunnel'?null:'tunnel');}
+      })}
+      {grant.seed>0&&booster('seed','buttonSeed','Seed',{
+        count:round.charges.seed,aria:`Seed, ${round.charges.seed} left`,pressed:mode==='seed',
+        disabled:locked||round.charges.seed<=0,
+        onClick:()=>{poke();setFiltered(null);setMode(mode==='seed'?null:'seed');}
+      })}
+      {grant.worker>0&&booster('summon','buttonWorker','Worker',{
+        count:round.charges.worker,aria:`Worker, ${round.charges.worker} left`,pressed:mode==='summon',
+        disabled:locked||round.charges.worker<=0,
+        onClick:()=>{poke();setFiltered(null);setMode(mode==='summon'?null:'summon');}
+      })}
+      {booster('hint','buttonHint','Hint',{
+        count:round.danceLeft,
+        aria:hint?.outcome==='win'&&hint.layer+1<hint.steps.length?'Look ahead':hintLabel,
+        disabled:locked||status!=='playing'||(round.danceLeft!==null&&round.danceLeft<=0),
+        onClick:doHint
+      })}
+      {booster('restart','buttonRestart','Restart',{aria:'Restart',disabled:locked,onClick:restart})}
     </div>
 
     {help&&<div className="hop-sheet-backdrop" role="presentation" onClick={event=>{if(event.target===event.currentTarget)setHelp(false);}}>
       <section className="hop-sheet" role="dialog" aria-label="How to play">
         <h2>{level.name}</h2>
         <p className="hop-wave-label">{waveName}{level.boss?' · Boss':''}</p>
-        <p>Every hop crosses one flower and lands on any green hex past it.</p>
-        <p>Stone hexes are dead ends — landing there leaves no hops. Undo rewinds one move. Hint shows a landing that clears it.</p>
-        <p>Some fields offer Tunnel, Seed, or a Worker. Every field can be cleared without them.</p>
+        <p>Every hop crosses one flower and lands on a glowing green hex past it.</p>
+        <p>A pebble on a green hex is a trap — landing there leaves no hops. Undo rewinds one move. Hint shows a landing that clears the field.</p>
+        <p>If no green hexes appear, the bee cannot hop from here. Use a booster or undo. Every field can still be cleared without boosters.</p>
         <p className="hop-wave-label" id="hop-levels-label">Levels in this wave</p>
         <div className="hop-tabs" role="group" aria-labelledby="hop-levels-label">
           <button type="button" disabled={level.wave===0} aria-label="Previous wave" onClick={()=>goto(waveStart-4)}>‹</button>

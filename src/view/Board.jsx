@@ -1,6 +1,7 @@
 import React,{useEffect,useRef,useState} from 'react';
 import {gsap} from 'gsap';
 import {SHEET_URL,Sprite} from './Sprite.jsx';
+import {hexTile} from './presentation.js';
 import {spriteStyle} from './sprites.js';
 
 function metricsFor(width,height){
@@ -104,15 +105,9 @@ export default function Board({
       const hinted=hintTo===cell||hintStep?.over===cell;
       const worker=bee&&cell!==round.lead;
       const settledBee=bee&&moving!==cell;
-      let tile='hexHoney';
-      if(hive&&!pollen&&!(settledBee&&!worker))tile='hexHoneyDrip';
-      if(pollen)tile='hexFlower';
-      if(landing)tile=dead?'hexStone':hinted||nudge?'hexLandingSparkle':'hexLanding';
-      if(tool&&mode==='tunnel')tile='hexPortal';
-      if(tool&&mode==='seed')tile='hexHoney';
-      if(tool&&mode==='summon')tile='hexHoneyDrip';
-      if(settledBee&&!worker)tile='hexBee';
-      const mark=settledBee&&worker?'beeWorker':tool&&mode==='seed'?'mango':dead?'stoneMoss':null;
+      const {tile,mark}=hexTile({
+        landing,dead,hinted,nudge:nudge&&landing&&!dead,pollen,hive,tool,mode,settledBee,worker
+      });
       let label=`Empty hex, ${place(cell,width)}`;
       if(bee)label=`${worker?'Worker bee':'Bee'} at ${place(cell,width)}${cell===selected?', selected':''}`;
       else if(tool&&mode==='tunnel')label=`Burrow to ${place(cell,width)}`;
