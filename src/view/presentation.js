@@ -45,23 +45,18 @@ export function boosterCallout({status,mode,jumpCount,otherJumps=0,charges={},un
   return 'hint';
 }
 
-/** Tile + overlay for one hex. Dead ends stay green landings with a pebble mark. */
+/** One honey hex for every cell. Marks show the bee, flower, hive, and stone traps. */
 export function hexTile({
-  landing=false,dead=false,hinted=false,nudge=false,pollen=false,hive=false,
+  landing=false,dead=false,pollen=false,hive=false,
   tool=false,mode=null,settledBee=false,worker=false
 }){
-  let tile='hexHoney';
-  if(hive&&!pollen&&!(settledBee&&!worker))tile='hexHoneyDrip';
-  if(pollen)tile='hexFlower';
-  if(landing)tile=hinted||nudge?'hexLandingSparkle':'hexLanding';
-  if(tool&&mode==='tunnel')tile='hexPortal';
-  if(tool&&mode==='seed')tile='hexHoney';
-  if(tool&&mode==='summon')tile='hexHoneyDrip';
-  if(settledBee&&!worker)tile='hexBee';
+  const tile='hexHoney';
   let mark=null;
-  if(settledBee&&worker)mark='beeWorker';
+  if(settledBee)mark=worker?'beeWorker':'bee';
   else if(tool&&mode==='seed')mark='mango';
+  else if(pollen)mark='flower';
   else if(landing&&dead)mark='stoneMoss';
+  else if(hive)mark='crown';
   return {tile,mark};
 }
 

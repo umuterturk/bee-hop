@@ -48,15 +48,22 @@ test('a selected bee with no hops points at the other bee',()=>{
   assert.doesNotMatch(note,/green hex|Plant a flower/i);
 });
 
-test('legal landings paint as green hexes, including dead ends',()=>{
-  const live=hexTile({landing:true,dead:false,hinted:false,nudge:false});
-  assert.equal(live.tile,'hexLanding');
+test('every cell shares the honey hex, with a blossom or a stone on top',()=>{
+  const empty=hexTile({});
+  assert.equal(empty.tile,'hexHoney');
+  assert.equal(empty.mark,null);
+  const live=hexTile({landing:true,dead:false});
+  assert.equal(live.tile,'hexHoney');
   assert.equal(live.mark,null);
-  const spark=hexTile({landing:true,dead:false,hinted:true,nudge:false});
-  assert.equal(spark.tile,'hexLandingSparkle');
-  const trap=hexTile({landing:true,dead:true,hinted:false,nudge:false});
-  assert.equal(trap.tile,'hexLanding');
+  const flower=hexTile({pollen:true});
+  assert.equal(flower.tile,empty.tile);
+  assert.equal(flower.mark,'flower');
+  const trap=hexTile({landing:true,dead:true});
+  assert.equal(trap.tile,empty.tile);
   assert.equal(trap.mark,'stoneMoss');
+  const bee=hexTile({settledBee:true,worker:false});
+  assert.equal(bee.tile,empty.tile);
+  assert.equal(bee.mark,'bee');
 });
 
 test('the screenshot board (last flower, bee off-line) is still playing with zero hops',()=>{

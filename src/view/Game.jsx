@@ -77,9 +77,6 @@ export default function Game(){
   const hearts=refillHearts(progress.hearts,now);
   const locked=hearts.count<=0;
   const waitLabel=heartWait(hearts,now);
-  const prevUnlocked=level.id>1&&level.id-1<=progress.unlocked?level.id-1:null;
-  const nextUnlocked=level.id<LEVELS.length&&level.id+1<=progress.unlocked?level.id+1:null;
-
   useEffect(()=>{track('level_start',{levelId:level.id,wave:level.wave,boss:level.boss});acted.current=false;},[level.id,deal]);
   useEffect(()=>{
     if(status!=='won')return;
@@ -121,10 +118,10 @@ export default function Game(){
   },[status,level.id,deal]);
   useEffect(()=>{
     setNudge(false);
-    if(reduced)return undefined;
-    const timer=setTimeout(()=>setNudge(true),4000);
+    if(reduced||status!=='playing')return undefined;
+    const timer=setTimeout(()=>setNudge(true),5000);
     return ()=>clearTimeout(timer);
-  },[level.id,deal,round.turns,mode,reduced]);
+  },[level.id,deal,round.turns,mode,selected,reduced,status]);
   useEffect(()=>()=>{hintToken.current+=1;setMusic(false);},[]);
   useEffect(()=>{
     if(!help)return undefined;
@@ -186,7 +183,7 @@ export default function Game(){
     if(next.pollen.length<current.pollen.length)setJarPulse(value=>value+1);
     setFlight({
       kind:action.type,from:action.bee??null,to:action.to??action.hive,over:action.over??null,
-      token:current.turns+1,celebrate:next.pollen.length===0,jar:jarRef.current
+      token:current.turns+1,celebrate:next.pollen.length===0,picked:next.pollen.length<current.pollen.length,jar:jarRef.current
     });
     if(!acted.current){acted.current=true;track('first_action',{levelId:level.id,type:action.type});}
     track(action.type,{levelId:level.id});
@@ -254,7 +251,7 @@ export default function Game(){
     if(moves.some(move=>move.over===cell))setFiltered(filterRef.current===cell?null:cell);
   }
   function booster(id,sprite,label,{count,disabled,pressed,onClick,aria}){
-    return <div className={`hop-booster is-${id} ${callout===id?'is-callout':''}`}>
+    return <div className={`hop-booster is-${id} ${disabled?'is-unavailable':''} ${callout===id?'is-callout':''}`}>
       <SpriteButton name={sprite} className={`hop-tool is-${id}`} aria-label={aria||label} aria-pressed={pressed} disabled={disabled} onClick={onClick}>
         {count!=null&&<span className="hop-count">{count}</span>}
       </SpriteButton>
@@ -270,16 +267,14 @@ export default function Game(){
     onPointerDown={poke}>
     <header className="hop-hud">
       <div className="hop-hud-level">
-        <button type="button" className="hop-hud-nav" aria-label="Previous level" disabled={!prevUnlocked||locked} onClick={()=>goto(prevUnlocked)}>‹</button>
         <div className="hop-level-badge">
-          {level.boss&&<Sprite name="crown" width={28} className="hop-boss-crown"/>}
+          {level.boss&&<Sprite name="crown" width={16} className="hop-boss-crown"/>}
           <span>{level.boss?'Boss':'Level'}</span><strong>{String(level.id).padStart(2,'0')}</strong>
         </div>
-        <button type="button" className="hop-hud-nav" aria-label="Next level" disabled={!nextUnlocked||locked} onClick={()=>goto(nextUnlocked)}>›</button>
       </div>
       <div ref={jarRef} className={`hop-objective ${jarPulse?'is-pulse':''}`} onAnimationEnd={()=>setJarPulse(0)} aria-label={`${pollenLeft(round)} flowers left`}>
         <span className="hop-objective-art">
-          <Sprite name="flower" width={28}/>
+          <Sprite name="flower" width={36}/>
         </span>
         <p><strong>{pollenLeft(round)}</strong><span>left</span></p>
       </div>
@@ -299,7 +294,7 @@ export default function Game(){
     <div className={`hop-stage ${jumps.length&&!mode?'has-landings':''} ${noHops?'is-no-hops':''}`}>
       <Board key={deal} width={level.width} height={level.height} round={round} selected={selected} jumps={jumps}
         pollenChoices={allJumps.map(move=>move.over)} toolCells={toolCells} hintStep={hintStep} mode={mode}
-        flight={flight} reduced={reduced} nudge={nudge&&jumps.length===1} status={status}
+        flight={flight} reduced={reduced} idle={nudge} status={status}
         filtered={filtered} deadEnds={deadEnds} onCell={onCell}/>
     </div>
 
@@ -331,15 +326,14 @@ export default function Game(){
         disabled:locked||status!=='playing'||(round.danceLeft!==null&&round.danceLeft<=0),
         onClick:doHint
       })}
-      {booster('restart','buttonRestart','Restart',{aria:'Restart',disabled:locked,onClick:restart})}
     </div>
 
     {help&&<div className="hop-sheet-backdrop" role="presentation" onClick={event=>{if(event.target===event.currentTarget)setHelp(false);}}>
       <section className="hop-sheet" role="dialog" aria-label="How to play">
         <h2>{level.name}</h2>
         <p className="hop-wave-label">{waveName}{level.boss?' · Boss':''}</p>
-        <p>Every hop crosses one flower and lands on a glowing green hex past it.</p>
-        <p>A pebble on a green hex is a trap — landing there leaves no hops. Undo rewinds one move. Hint shows a landing that clears the field.</p>
+        <p>Every hop crosses one flower and lands on the hex just past it. A green edge marks a landing.</p>
+        <p>A stone is a trap — landing there leaves no hops. Undo rewinds one move. Hint shows a landing that clears the field.</p>
         <p>If no green hexes appear, the bee cannot hop from here. Use a booster or undo. Every field can still be cleared without boosters.</p>
         <p className="hop-wave-label" id="hop-levels-label">Levels in this wave</p>
         <div className="hop-tabs" role="group" aria-labelledby="hop-levels-label">
@@ -356,7 +350,8 @@ export default function Game(){
           <label><input type="checkbox" checked={progress.settings.music} onChange={event=>patchSettings({music:event.target.checked})}/> Music</label>
           <label><input type="checkbox" checked={progress.settings.haptics} onChange={event=>patchSettings({haptics:event.target.checked})}/> Haptics</label>
           <label><input type="checkbox" checked={progress.settings.reduceMotion} onChange={event=>patchSettings({reduceMotion:event.target.checked})}/> Reduce motion</label>
-          <button type="button" className="hop-life" disabled={hearts.count>=HEART_CAP} onClick={()=>setProgress(prev=>({...prev,hearts:grantHeart(prev.hearts,Date.now())}))}>New life</button>
+          <button type="button" className="hop-option" disabled={locked} onClick={()=>{setHelp(false);restart();}}>Restart field</button>
+          <button type="button" className="hop-option" disabled={hearts.count>=HEART_CAP} onClick={()=>setProgress(prev=>({...prev,hearts:grantHeart(prev.hearts,Date.now())}))}>New life</button>
         </div>
       </section>
     </div>}
