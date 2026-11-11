@@ -12,7 +12,8 @@ function cellStyle(cell,width,metrics){
   const row=Math.floor(cell/width),col=cell%width;
   return {
     left:`${(col+(row%2)*.5)/metrics.boardWidth*100}%`,
-    top:`${row*.75/metrics.boardHeight*100}%`
+    top:`${row*.75/metrics.boardHeight*100}%`,
+    '--cell-i':row*width+col
   };
 }
 function place(cell,width){
@@ -21,7 +22,7 @@ function place(cell,width){
 
 export default function Board({
   width,height,round,selected,jumps,pollenChoices,toolCells,hintStep,mode,
-  flight,reduced,nudge,zoom,status,filtered,onCell
+  flight,reduced,nudge,status,filtered,deadEnds,onCell
 }){
   const metrics=metricsFor(width,height);
   const boardRef=useRef(null);
@@ -30,6 +31,7 @@ export default function Board({
   const jumpSet=new Map(jumps.map(move=>[move.to,move]));
   const choiceSet=new Set(pollenChoices);
   const tools=new Set(toolCells);
+  const deadSet=deadEnds instanceof Set?deadEnds:new Set(deadEnds||[]);
   const hintTo=hintStep?.to??hintStep?.hive;
   const [settled,setSettled]=useState(null);
   const moving=flight&&!reduced&&flight.kind!=='seed'&&settled!==flight.token?flight.to:null;
@@ -88,50 +90,50 @@ export default function Board({
     return ()=>{live=false;ctx.revert();bit?.remove();};
   },[flight,reduced]);
 
-  return <div className={`hop-scroll ${zoom?'is-zoomed':''}`}>
-    <div ref={boardRef} className="hop-board" role="group" aria-label={`${width} by ${height} honeycomb`}
-      style={{aspectRatio:metrics.aspect,'--board-aspect':metrics.aspect,'--hex-w':`${100/metrics.boardWidth}%`,'--hex-h':`${100/metrics.boardHeight}%`}}>
-      {Array.from({length:width*height},(_,cell)=>{
-        const bee=round.bees.includes(cell);
-        const pollen=round.pollen.includes(cell);
-        const hive=round.hives.includes(cell);
-        const landing=status==='playing'&&!mode&&jumpSet.has(cell);
-        const flowerChoice=status==='playing'&&!mode&&choiceSet.has(cell);
-        const tool=status==='playing'&&mode&&tools.has(cell);
-        const interactive=bee&&status==='playing'||landing||flowerChoice||tool;
-        const hinted=hintTo===cell||hintStep?.over===cell;
-        const worker=bee&&cell!==round.lead;
-        const settledBee=bee&&moving!==cell;
-        let tile='hexHoney';
-        if(hive&&!pollen&&!(settledBee&&!worker))tile='hexHoneyDrip';
-        if(pollen)tile='hexFlower';
-        if(landing)tile=hinted||nudge?'hexLandingSparkle':'hexLanding';
-        if(tool&&mode==='tunnel')tile='hexPortal';
-        if(tool&&mode==='seed')tile='hexHoney';
-        if(tool&&mode==='summon')tile='hexHoneyDrip';
-        if(settledBee&&!worker)tile='hexBee';
-        const mark=settledBee&&worker?'beeWorker':tool&&mode==='seed'?'mango':null;
-        let label=`Empty hex, ${place(cell,width)}`;
-        if(bee)label=`${worker?'Worker bee':'Bee'} at ${place(cell,width)}${cell===selected?', selected':''}`;
-        else if(tool&&mode==='tunnel')label=`Burrow to ${place(cell,width)}`;
-        else if(tool&&mode==='seed')label=`Plant a flower at ${place(cell,width)}`;
-        else if(tool)label=`Call a worker at the hive, ${place(cell,width)}`;
-        else if(landing)label=`Land at ${place(cell,width)} and collect the flower`;
-        else if(flowerChoice)label=`Flower at ${place(cell,width)}. Show its landings`;
-        else if(pollen)label=`Flower at ${place(cell,width)}`;
-        else if(hive)label=`Hive at ${place(cell,width)}`;
-        return <button key={cell} type="button" ref={node=>{cellRefs.current[cell]=node;}}
-          className={`hop-cell ${bee?'is-bee':''} ${worker?'is-worker':''} ${cell===selected?'is-selected':''} ${pollen?'is-pollen':''} ${hive?'is-hive':''} ${flowerChoice?'is-flower':''} ${filtered===cell?'is-filtered':''} ${landing?'is-landing':''} ${tool?`is-tool is-${mode}`:''} ${hinted?'is-hint':''} ${nudge&&landing?'is-nudge':''} ${moving===cell?'is-moving':''} ${flight?.kind==='seed'&&flight.to===cell?'is-new':''}`}
-          style={cellStyle(cell,width,metrics)} disabled={!interactive} aria-label={label}
-          aria-pressed={bee?cell===selected:flowerChoice?filtered===cell:undefined}
-          onClick={()=>onCell(cell)}>
-          <Sprite name={tile} className="hop-hex"/>
-          {mark&&<Sprite name={mark} className={`hop-mark is-${mark}`}/>}
-          {bee&&cell===selected&&moving!==cell&&<Sprite name="ringDashed" className="hop-ring"/>}
-          {hinted&&!landing&&<Sprite name="sparkleMedium" className="hop-spark"/>}
-        </button>;
-      })}
-      {moving!=null&&<div className="hop-ghost" ref={ghostRef}><Sprite name={moving!==round.lead?'beeWorker':'bee'} className="hop-mark"/></div>}
-    </div>
+  return <div ref={boardRef} className="hop-board" role="group" aria-label={`${width} by ${height} honeycomb`}
+    style={{'--board-aspect':metrics.aspect,'--hex-w':`${100/metrics.boardWidth}%`,'--hex-h':`${100/metrics.boardHeight}%`}}>
+    {Array.from({length:width*height},(_,cell)=>{
+      const bee=round.bees.includes(cell);
+      const pollen=round.pollen.includes(cell);
+      const hive=round.hives.includes(cell);
+      const landing=status==='playing'&&!mode&&jumpSet.has(cell);
+      const dead=landing&&deadSet.has(cell);
+      const flowerChoice=status==='playing'&&!mode&&choiceSet.has(cell);
+      const tool=status==='playing'&&mode&&tools.has(cell);
+      const interactive=bee&&status==='playing'||landing||flowerChoice||tool;
+      const hinted=hintTo===cell||hintStep?.over===cell;
+      const worker=bee&&cell!==round.lead;
+      const settledBee=bee&&moving!==cell;
+      let tile='hexHoney';
+      if(hive&&!pollen&&!(settledBee&&!worker))tile='hexHoneyDrip';
+      if(pollen)tile='hexFlower';
+      if(landing)tile=dead?'hexStone':hinted||nudge?'hexLandingSparkle':'hexLanding';
+      if(tool&&mode==='tunnel')tile='hexPortal';
+      if(tool&&mode==='seed')tile='hexHoney';
+      if(tool&&mode==='summon')tile='hexHoneyDrip';
+      if(settledBee&&!worker)tile='hexBee';
+      const mark=settledBee&&worker?'beeWorker':tool&&mode==='seed'?'mango':dead?'stoneMoss':null;
+      let label=`Empty hex, ${place(cell,width)}`;
+      if(bee)label=`${worker?'Worker bee':'Bee'} at ${place(cell,width)}${cell===selected?', selected':''}`;
+      else if(tool&&mode==='tunnel')label=`Burrow to ${place(cell,width)}`;
+      else if(tool&&mode==='seed')label=`Plant a flower at ${place(cell,width)}`;
+      else if(tool)label=`Call a worker at the hive, ${place(cell,width)}`;
+      else if(dead)label=`Dead end at ${place(cell,width)}. Landing leaves no hops`;
+      else if(landing)label=`Land at ${place(cell,width)} and collect the flower`;
+      else if(flowerChoice)label=`Flower at ${place(cell,width)}. Show its landings`;
+      else if(pollen)label=`Flower at ${place(cell,width)}`;
+      else if(hive)label=`Hive at ${place(cell,width)}`;
+      return <button key={cell} type="button" ref={node=>{cellRefs.current[cell]=node;}}
+        className={`hop-cell ${bee?'is-bee':''} ${worker?'is-worker':''} ${cell===selected?'is-selected':''} ${pollen?'is-pollen':''} ${hive?'is-hive':''} ${flowerChoice?'is-flower':''} ${filtered===cell?'is-filtered':''} ${landing?'is-landing':''} ${dead?'is-dead':''} ${tool?`is-tool is-${mode}`:''} ${hinted?'is-hint':''} ${nudge&&landing&&!dead?'is-nudge':''} ${moving===cell?'is-moving':''} ${flight?.kind==='seed'&&flight.to===cell?'is-new':''}`}
+        style={cellStyle(cell,width,metrics)} disabled={!interactive} aria-label={label}
+        aria-pressed={bee?cell===selected:flowerChoice?filtered===cell:undefined}
+        onClick={()=>onCell(cell)}>
+        <Sprite name={tile} className="hop-hex"/>
+        {mark&&<Sprite name={mark} className={`hop-mark is-${mark}`}/>}
+        {bee&&cell===selected&&moving!==cell&&<Sprite name="ringDashed" className="hop-ring"/>}
+        {hinted&&!landing&&<Sprite name="sparkleMedium" className="hop-spark"/>}
+      </button>;
+    })}
+    {moving!=null&&<div className="hop-ghost" ref={ghostRef}><Sprite name={moving!==round.lead?'beeWorker':'bee'} className="hop-mark"/></div>}
   </div>;
 }
