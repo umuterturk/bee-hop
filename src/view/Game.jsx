@@ -5,6 +5,7 @@ import {legalJumps,seedTargets,statusOf,summonTargets,tunnelTargets} from '../en
 import {commit,newRound,spendDance,toBoard,undo} from '../session/round.js';
 import {findHint} from '../session/hint.js';
 import {loadProgress,saveProgress} from '../session/progress.js';
+import {HEART_CAP,freshHearts,heartWait,refillHearts,spendHeart} from '../session/hearts.js';
 import {track} from '../services/analytics.js';
 import {playCue,setMusic,unlockAudio} from '../services/audio.js';
 import {buzz} from '../services/haptics.js';
@@ -42,6 +43,7 @@ export default function Game(){
   const [zoom,setZoom]=useState(false);
   const [nudge,setNudge]=useState(false);
   const [deal,setDeal]=useState(0);
+  const [now,setNow]=useState(()=>Date.now());
   const [debug]=useState(()=>typeof window!=='undefined'&&new URLSearchParams(window.location.search).has('debug'));
   const roundRef=useRef(round);
   const modeRef=useRef(mode);
@@ -70,6 +72,9 @@ export default function Game(){
   const note=boardNote({status,hint,mode,filtered:filtered!=null,level,round});
   const waveName=WAVE_NAMES[level.wave];
   const waveStart=level.wave*5;
+  const hearts=refillHearts(progress.hearts,now);
+  const locked=hearts.count<=0;
+  const waitLabel=heartWait(hearts,now);
 
   useEffect(()=>{track('level_start',{levelId:level.id,wave:level.wave,boss:level.boss});acted.current=false;},[level.id,deal]);
   useEffect(()=>{
@@ -89,8 +94,23 @@ export default function Game(){
     track('level_complete',{levelId:level.id,turns:current.turns,usedUndo:current.usedUndo,usedTool:current.usedTool,badges:badges.map(badge=>badge.id)});
   },[status,level,deal]);
   useEffect(()=>{
-    if(status==='stuck')track('level_stuck',{levelId:level.id});
+    if(status!=='stuck')return;
+    track('level_stuck',{levelId:level.id});
+    if(roundRef.current.failedHeart)return;
+    const marked={...roundRef.current,failedHeart:true};
+    roundRef.current=marked;
+    setRound(marked);
+    setProgress(prev=>({...prev,hearts:spendHeart(prev.hearts,Date.now())}));
   },[status,level.id,deal]);
+  useEffect(()=>{
+    const timer=setInterval(()=>setNow(Date.now()),1000);
+    return ()=>clearInterval(timer);
+  },[]);
+  useEffect(()=>{
+    const next=refillHearts(progress.hearts,now);
+    if(next.count===progress.hearts?.count&&next.nextAt===progress.hearts?.nextAt)return;
+    setProgress(prev=>({...prev,hearts:refillHearts(prev.hearts,Date.now())}));
+  },[now,progress.hearts]);
   useEffect(()=>{saveProgress({...progress,resume:{levelId:level.id,round:roundRef.current}});},[progress,round,level.id]);
   useEffect(()=>{
     if(status==='won')nextRef.current?.focus({preventScroll:true});
@@ -122,14 +142,27 @@ export default function Game(){
   function resetSelection(nextRound,bee=nextRound.bees[0]){
     setMode(null);setFiltered(null);setHint(null);setFlight(null);setSelectedBee(bee);setZoom(false);
   }
+  function chargeAttempt(){
+    const current=roundRef.current;
+    if(current.failedHeart||statusOf(toBoard(current))==='won')return false;
+    if(current.turns===0&&!current.usedUndo&&!current.usedTool&&current.past.length===0)return false;
+    const marked={...current,failedHeart:true};
+    roundRef.current=marked;
+    setRound(marked);
+    setProgress(prev=>({...prev,hearts:spendHeart(prev.hearts,Date.now())}));
+    return true;
+  }
   function goto(id){
-    if(id<1||id>LEVELS.length||id>progress.unlocked)return;
+    if(locked||id<1||id>LEVELS.length||id>progress.unlocked)return;
+    if(chargeAttempt()&&hearts.count<=1)return;
     const nextLevel=LEVELS[id-1];
     const fresh=newRound(nextLevel);
     roundRef.current=fresh;
     setLevelId(id);setRound(fresh);resetSelection(fresh);setDeal(value=>value+1);
   }
   function restart(){
+    if(locked)return;
+    if(chargeAttempt()&&hearts.count<=1)return;
     const fresh=newRound(level);
     roundRef.current=fresh;
     setRound(fresh);resetSelection(fresh);setDeal(value=>value+1);
@@ -138,7 +171,7 @@ export default function Game(){
   }
   function play(action){
     const current=roundRef.current;
-    if(statusOf(toBoard(current))!=='playing')return;
+    if(locked||statusOf(toBoard(current))!=='playing')return;
     const next=commit(current,action);
     if(next===current)return;
     roundRef.current=next;
@@ -158,15 +191,18 @@ export default function Game(){
     buzz(next.pollen.length===0?28:12,progress.settings.haptics);
   }
   function doUndo(){
+    if(locked)return;
     const next=undo(roundRef.current);
     if(next===roundRef.current)return;
-    roundRef.current=next;
-    setRound(next);setHint(null);setFiltered(null);setMode(null);setFlight(null);
-    setSelectedBee(next.bees.includes(beeRef.current)?beeRef.current:next.lead);
-    track('undo',{levelId:level.id,left:next.undoLeft});
+    const cleared=statusOf(toBoard(next))==='stuck'?next:{...next,failedHeart:false};
+    roundRef.current=cleared;
+    setRound(cleared);setHint(null);setFiltered(null);setMode(null);setFlight(null);
+    setSelectedBee(cleared.bees.includes(beeRef.current)?beeRef.current:cleared.lead);
+    track('undo',{levelId:level.id,left:cleared.undoLeft});
     playCue('undo',progress.settings.sound);
   }
   function doHint(){
+    if(locked)return;
     const current=roundRef.current;
     const deeper=hint?.outcome==='win'&&hint.layer+1<hint.steps.length;
     if(current.danceLeft!==null&&current.danceLeft<=0)return;
@@ -198,6 +234,7 @@ export default function Game(){
   }
   function onCell(cell){
     poke();
+    if(locked)return;
     const current=roundRef.current;
     if(statusOf(toBoard(current))!=='playing')return;
     if(current.bees.includes(cell)){setSelectedBee(cell);setFiltered(null);return;}
@@ -212,7 +249,7 @@ export default function Game(){
     if(moves.some(move=>move.over===cell))setFiltered(filterRef.current===cell?null:cell);
   }
   function toolButton(id,sprite,label,left){
-    return <SpriteButton name={sprite} className={`hop-tool is-${id}`} aria-label={`${label}, ${left} left`} aria-pressed={mode===id} disabled={left<=0}
+    return <SpriteButton name={sprite} className={`hop-tool is-${id}`} aria-label={`${label}, ${left} left`} aria-pressed={mode===id} disabled={locked||left<=0}
       onClick={()=>{poke();setFiltered(null);setMode(mode===id?null:id);}}><span className="hop-count">{left}</span></SpriteButton>;
   }
 
@@ -220,7 +257,7 @@ export default function Game(){
   const undoLabel=round.undoLeft==null?'Undo':`Undo ${round.undoLeft}`;
   const hintLabel=round.danceLeft==null?'Hint':`Hint ${round.danceLeft}`;
 
-  return <div className={`hop ${level.boss?'is-boss':''} ${reduced?'is-reduced':''}`} data-status={status} data-level={level.id}
+  return <div className={`hop ${level.boss?'is-boss':''} ${reduced?'is-reduced':''} ${locked?'is-tired':''}`} data-status={status} data-level={level.id}
     onPointerDown={poke}>
     <header className="hop-top">
       <div>
@@ -247,6 +284,12 @@ export default function Game(){
     <div className="hop-goal">
       <div ref={jarRef}><Sprite name={jarName(jarFill(round))} width={52} className="hop-jar"/></div>
       <p><strong>{pollenLeft(round)}</strong><span>left</span></p>
+      <div className="hop-hearts" aria-label={`${hearts.count} of ${HEART_CAP} hearts`}>
+        <div className="hop-heart-row">
+          {Array.from({length:HEART_CAP},(_,index)=><Sprite key={index} name={index<hearts.count?'heart':'heartOutline'} width={26}/>)}
+        </div>
+        {waitLabel&&<p className="hop-heart-wait">Next heart {waitLabel}</p>}
+      </div>
     </div>
     {help&&<section className="hop-sheet" role="dialog" aria-label="How to play">
       <p>Every hop crosses one flower and lands on any green hex past it.</p>
@@ -264,7 +307,7 @@ export default function Game(){
       flight={flight} reduced={reduced} nudge={nudge&&jumps.length===1} zoom={zoom} status={status}
       filtered={filtered} onCell={onCell}/>
     {level.width>=7&&<button type="button" className="hop-zoom" onClick={()=>setZoom(value=>!value)}>{zoom?'Fit the field':'Enlarge the field'}</button>}
-    <p className="hop-note" aria-live="polite">{note}</p>
+    <p className="hop-note" aria-live="polite">{locked?`Out of hearts. Next heart in ${waitLabel}.`:note}</p>
     {status==='won'&&<section className="hop-win" role="dialog" aria-labelledby="hop-win-title">
       <p className="hop-kicker">Field cleared</p>
       <div className="hop-win-banner" style={spriteFitStyle('bannerGold',SHEET_URL)}>
@@ -274,13 +317,13 @@ export default function Game(){
       </div>
       <p>{round.turns} {round.turns===1?'hop':'hops'}.</p>
       {badges.length>0&&<ul className="hop-badges">{badges.map(badge=><li key={badge.id}><Sprite name={BADGE_SPRITE[badge.id]} width={22}/>{badge.name}</li>)}</ul>}
-      <button ref={nextRef} type="button" className="hop-next" style={spriteFitStyle('buttonGold',SHEET_URL)} onClick={()=>goto(level.id===LEVELS.length?1:level.id+1)}>
+      <button ref={nextRef} type="button" className="hop-next" style={spriteFitStyle('buttonGold',SHEET_URL)} disabled={locked} onClick={()=>goto(level.id===LEVELS.length?1:level.id+1)}>
         {level.id===LEVELS.length?'Play the first field':'Next field'}
       </button>
     </section>}
     {status==='stuck'&&<p className="hop-stuck" style={spriteFitStyle('bubble',SHEET_URL)}>No hops left from here.</p>}
     <div className="hop-tools">
-      <SpriteButton name="buttonUndo" aria-label={undoLabel} onClick={doUndo} disabled={!round.past.length||(round.undoLeft!==null&&round.undoLeft<=0)}>
+      <SpriteButton name="buttonUndo" aria-label={undoLabel} onClick={doUndo} disabled={locked||!round.past.length||(round.undoLeft!==null&&round.undoLeft<=0)}>
         {round.undoLeft!=null&&<span className="hop-count">{round.undoLeft}</span>}
       </SpriteButton>
       {grant.tunnel>0&&toolButton('tunnel','buttonTunnel','Tunnel',round.charges.tunnel)}
@@ -288,15 +331,15 @@ export default function Game(){
       {grant.worker>0&&toolButton('summon','buttonWorker','Worker',round.charges.worker)}
     </div>
     <div className="hop-secondary">
-      <SpriteButton name="buttonHint" aria-label={hint?.outcome==='win'&&hint.layer+1<hint.steps.length?'Look ahead':hintLabel} onClick={doHint} disabled={status!=='playing'||(round.danceLeft!==null&&round.danceLeft<=0)}>
+      <SpriteButton name="buttonHint" aria-label={hint?.outcome==='win'&&hint.layer+1<hint.steps.length?'Look ahead':hintLabel} onClick={doHint} disabled={locked||status!=='playing'||(round.danceLeft!==null&&round.danceLeft<=0)}>
         {round.danceLeft!=null&&<span className="hop-count">{round.danceLeft}</span>}
       </SpriteButton>
-      <SpriteButton name="buttonRestart" aria-label="Restart" onClick={restart}/>
+      <SpriteButton name="buttonRestart" aria-label="Restart" onClick={restart} disabled={locked}/>
     </div>
     {debug&&<details className="hop-debug">
       <summary>Design numbers</summary>
       <p>Difficulty {level.metrics.difficulty.toFixed(2)} · winning routes {level.metrics.winningPaths} · forks {level.metrics.forks}</p>
-      <button type="button" onClick={()=>{saveProgress({...progress,unlocked:1,badges:{},resume:null});goto(1);setProgress(prev=>({...prev,unlocked:1,badges:{},resume:null}));}}>Reset progress</button>
+      <button type="button" onClick={()=>{const reset={...progress,unlocked:1,badges:{},resume:null,hearts:freshHearts()};saveProgress(reset);setProgress(reset);const fresh=newRound(LEVELS[0]);roundRef.current=fresh;setLevelId(1);setRound(fresh);resetSelection(fresh);setDeal(value=>value+1);}}>Reset progress</button>
     </details>}
   </div>;
 }

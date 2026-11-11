@@ -28,6 +28,10 @@ button:focus-visible,a:focus-visible{outline:3px solid #8a5a12;outline-offset:3p
 .hop-tabs button.is-boss.is-active{background:#d3921c;border-color:#a87412;box-shadow:0 3px 0 #8d6416}
 .hop-tabs button:disabled{opacity:.38}
 .hop-goal{display:flex;align-items:center;gap:8px}
+.hop-hearts{margin-left:auto;display:flex;flex-direction:column;align-items:flex-end;gap:1px}
+.hop-heart-row{display:flex;gap:2px;align-items:center}
+.hop-heart-wait{margin:0;font-size:12px;font-weight:800;font-variant-numeric:tabular-nums;color:#a33b4a}
+.hop.is-tired .hop-scroll,.hop.is-tired .hop-tools,.hop.is-tired .hop-secondary{opacity:.55}
 .hop-jar{display:block}
 .hop-goal p{margin:0;display:flex;align-items:baseline;gap:6px}
 .hop-goal strong{font-family:"Lilita One",system-ui,sans-serif;font-size:34px;font-variant-numeric:tabular-nums;line-height:1;color:#8a5a12}

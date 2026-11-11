@@ -1,5 +1,6 @@
 import {hiveCell,inventoryFor} from '../content/campaign.js';
 import {LEVELS} from '../content/catalog.js';
+import {freshHearts,refillHearts} from './hearts.js';
 
 export const PROGRESS_KEY='bee-hop.progress.v1';
 const LEGACY_KEY='bee-hop.best-level.v2';
@@ -10,7 +11,8 @@ export function freshProgress(){
     unlocked:1,
     badges:{},
     settings:{sound:true,music:false,haptics:true,reduceMotion:prefersReduced()},
-    resume:null
+    resume:null,
+    hearts:freshHearts()
   };
 }
 export function memoryStorage(){
@@ -80,7 +82,7 @@ export function loadProgress(storage=browserStorage()){
         resume={levelId:level.id,round:parsed.resume.round};
       }
     }
-    return {v:1,unlocked,badges,settings,resume};
+    return {v:1,unlocked,badges,settings,resume,hearts:refillHearts(parsed.hearts,Date.now())};
   }catch{
     return blank;
   }
