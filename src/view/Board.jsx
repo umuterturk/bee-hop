@@ -1,7 +1,7 @@
 import React,{useEffect,useRef,useState} from 'react';
 import {gsap} from 'gsap';
 import {Sprite,frameUrl,peekFrame} from './Sprite.jsx';
-import {hexTile} from './presentation.js';
+import {collectBurst,hexTile} from './presentation.js';
 import {spriteStyle} from './sprites.js';
 
 function metricsFor(width,height){
@@ -23,7 +23,7 @@ function place(cell,width){
 
 export default function Board({
   width,height,round,selected,jumps,pollenChoices,toolCells,hintStep,mode,
-  flight,reduced,idle,status,filtered,deadEnds,onCell
+  flight,reduced,idle,status,filtered,onCell
 }){
   const metrics=metricsFor(width,height);
   const boardRef=useRef(null);
@@ -32,7 +32,6 @@ export default function Board({
   const jumpSet=new Map(jumps.map(move=>[move.to,move]));
   const choiceSet=new Set(pollenChoices);
   const tools=new Set(toolCells);
-  const deadSet=deadEnds instanceof Set?deadEnds:new Set(deadEnds||[]);
   const hintTo=hintStep?.to??hintStep?.hive;
   const [settled,setSettled]=useState(null);
   const hopping=flight&&!reduced&&flight.kind!=='seed'&&settled!==flight.token;
@@ -52,7 +51,53 @@ export default function Board({
     const fromEl=flight.from==null?null:cellRefs.current[flight.from];
     const duration=flight.celebrate?0.62:0.26;
     let bit=null;
+    const sparks=[];
     let live=true;
+    const paintBit=(node,sprite,url,size)=>{
+      const painted=spriteStyle(sprite,url,size);
+      node.style.width=`${painted.width}px`;
+      node.style.height=`${painted.height}px`;
+      node.style.backgroundImage=painted.backgroundImage;
+      node.style.backgroundRepeat=painted.backgroundRepeat;
+      node.style.backgroundSize=painted.backgroundSize;
+      node.style.backgroundPosition=painted.backgroundPosition;
+    };
+    const burstAt=(x,y,scale,turnOffset)=>{
+      const specs=collectBurst(scale,turnOffset);
+      const names=[...new Set(specs.map(spec=>spec.sprite))];
+      const launch=urls=>{
+        if(!live)return;
+        for(const spec of specs){
+          const url=urls[spec.sprite];
+          if(!url)continue;
+          const node=document.createElement('span');
+          node.className='hop-burst';
+          paintBit(node,spec.sprite,url,spec.size);
+          document.body.appendChild(node);
+          sparks.push(node);
+          const spin=gsap.timeline({delay:spec.delay});
+          spin.fromTo(node,
+            {x,y,xPercent:-50,yPercent:-50,scale:.2,opacity:0,rotation:0},
+            {scale:1.25,opacity:1,duration:.16,ease:'back.out(2.8)'});
+          spin.to(node,{
+            x:x+spec.dx,y:y+spec.dy,scale:.15,opacity:0,rotation:spec.spin,
+            duration:.62,ease:'power2.out',onComplete(){node.remove();}
+          });
+        }
+      };
+      const ready={};
+      const missing=[];
+      for(const name of names){
+        const url=peekFrame(name);
+        if(url)ready[name]=url;
+        else missing.push(name);
+      }
+      if(!missing.length)launch(ready);
+      else Promise.all(missing.map(async name=>[name,await frameUrl(name)])).then(entries=>{
+        if(!live)return;
+        launch({...ready,...Object.fromEntries(entries)});
+      });
+    };
     const ctx=gsap.context(()=>{
       const start=center(ghost);
       const dx=end.x-start.x;
@@ -61,7 +106,7 @@ export default function Board({
       let motion;
       if(flight.kind==='jump'&&fromEl){
         motion=gsap.timeline();
-        motion.fromTo(ghost,{x:0,y:0,scale:1,opacity:1},{x:dx,y:dy-lift,scale:flight.celebrate?1.16:1.08,duration:duration*.62,ease:'power2.out'});
+        motion.fromTo(ghost,{x:0,y:0,scale:1,opacity:1},{x:dx,y:dy-lift,scale:flight.celebrate?1.22:flight.picked?1.14:1.08,duration:duration*.62,ease:'power2.out'});
         motion.to(ghost,{x:dx,y:dy,scale:1,duration:duration*.38,ease:'bounce.out'});
       }else if(flight.kind==='tunnel'&&fromEl){
         motion=gsap.timeline();
@@ -72,40 +117,48 @@ export default function Board({
         motion=gsap.fromTo(ghost,{scale:.2,opacity:0},{scale:1,opacity:1,duration:.48,ease:'back.out(1.8)'});
       }
       motion.eventCallback('onComplete',()=>{if(live)setSettled(flight.token);});
-      if(flight.kind==='jump'&&flight.over!=null&&flight.jar){
+      if(flight.kind==='jump'&&flight.over!=null&&flight.picked){
         const overEl=cellRefs.current[flight.over];
-        const jarBox=flight.jar.getBoundingClientRect();
         const overBox=overEl?.getBoundingClientRect();
-        if(overBox&&jarBox.width){
-          const launch=url=>{
-            if(!live||!url)return;
-            bit=document.createElement('span');
-            bit.className='hop-bit';
-            const painted=spriteStyle('flower',url,flight.celebrate?36:28);
-            bit.style.width=`${painted.width}px`;
-            bit.style.height=`${painted.height}px`;
-            bit.style.backgroundImage=painted.backgroundImage;
-            bit.style.backgroundRepeat=painted.backgroundRepeat;
-            bit.style.backgroundSize=painted.backgroundSize;
-            bit.style.backgroundPosition=painted.backgroundPosition;
-            document.body.appendChild(bit);
-            const pop=flight.celebrate?1.6:flight.picked?1.28:1.05;
-            const bloom=gsap.timeline();
-            bloom.fromTo(bit,
-              {x:overBox.left+overBox.width/2,y:overBox.top+overBox.height/2,xPercent:-50,yPercent:-50,scale:.35,opacity:1},
-              {scale:pop,duration:flight.celebrate?0.24:0.14,ease:'back.out(2.4)'});
-            bloom.to(bit,{
-              x:jarBox.left+jarBox.width/2,y:jarBox.top+jarBox.height/2,scale:flight.celebrate?0.72:0.42,opacity:0,
-              duration:flight.celebrate?0.74:0.4,ease:'power2.in',onComplete(){bit?.remove();}
-            });
-          };
-          const ready=peekFrame('flower');
-          if(ready)launch(ready);
-          else frameUrl('flower').then(launch);
+        if(overBox){
+          const originX=overBox.left+overBox.width/2;
+          const originY=overBox.top+overBox.height/2;
+          burstAt(originX,originY,flight.celebrate?1.2:1,0);
+          if(flight.celebrate)burstAt(originX,originY,.8,Math.PI/8);
+          const jarBox=flight.jar?.getBoundingClientRect();
+          if(jarBox?.width){
+            const launch=url=>{
+              if(!live||!url)return;
+              bit=document.createElement('span');
+              bit.className='hop-bit';
+              paintBit(bit,'flower',url,flight.celebrate?44:34);
+              document.body.appendChild(bit);
+              const pop=flight.celebrate?2.05:1.75;
+              const bloom=gsap.timeline();
+              bloom.fromTo(bit,
+                {x:originX,y:originY,xPercent:-50,yPercent:-50,scale:.3,rotation:0,opacity:1},
+                {scale:pop,rotation:flight.celebrate?-14:10,duration:flight.celebrate?0.26:0.16,ease:'back.out(2.8)'});
+              bloom.to(bit,{
+                x:jarBox.left+jarBox.width/2,y:jarBox.top+jarBox.height/2,scale:flight.celebrate?0.72:0.4,rotation:0,opacity:0,
+                duration:flight.celebrate?0.78:0.46,ease:'power2.in',onComplete(){
+                  bit?.remove();
+                  if(live)burstAt(jarBox.left+jarBox.width/2,jarBox.top+jarBox.height/2,flight.celebrate?0.7:0.5,Math.PI/10);
+                }
+              });
+            };
+            const ready=peekFrame('flower');
+            if(ready)launch(ready);
+            else frameUrl('flower').then(launch);
+          }
         }
       }
     });
-    return ()=>{live=false;ctx.revert();if(bit){gsap.killTweensOf(bit);bit.remove();}};
+    return ()=>{
+      live=false;
+      ctx.revert();
+      if(bit){gsap.killTweensOf(bit);bit.remove();}
+      for(const node of sparks){gsap.killTweensOf(node);node.remove();}
+    };
   },[flight,reduced]);
 
   return <div ref={boardRef} className="hop-board" role="group" aria-label={`${width} by ${height} honeycomb`}
@@ -116,28 +169,25 @@ export default function Board({
       const pollen=round.pollen.includes(cell);
       const hive=round.hives.includes(cell);
       const landing=status==='playing'&&!mode&&jumpSet.has(cell);
-      const dead=landing&&deadSet.has(cell);
-      const openLanding=landing&&!dead;
       const flowerChoice=status==='playing'&&!mode&&choiceSet.has(cell);
       const tool=status==='playing'&&mode&&tools.has(cell);
       const interactive=(occupied||bee)&&status==='playing'||landing||flowerChoice||tool;
       const hinted=hintTo===cell||hintStep?.over===cell;
       const worker=bee&&cell!==round.lead;
       const {tile,mark}=hexTile({
-        landing,dead,pollen,hive,tool,mode,settledBee:bee,worker
+        landing,pollen,hive,tool,mode,settledBee:bee,worker
       });
       let label=`Empty hex, ${place(cell,width)}`;
       if(occupied||bee)label=`${worker?'Worker bee':'Bee'} at ${place(cell,width)}${cell===selected?', selected':''}`;
       else if(tool&&mode==='tunnel')label=`Burrow to ${place(cell,width)}`;
       else if(tool&&mode==='seed')label=`Plant a flower at ${place(cell,width)}`;
       else if(tool)label=`Call a worker at the hive, ${place(cell,width)}`;
-      else if(dead)label=`Stone trap at ${place(cell,width)}. Landing leaves no hops`;
       else if(landing)label=`Land at ${place(cell,width)} and collect the flower`;
       else if(flowerChoice)label=`Flower at ${place(cell,width)}. Show its landings`;
       else if(pollen)label=`Flower at ${place(cell,width)}`;
       else if(hive)label=`Hive at ${place(cell,width)}`;
       return <button key={cell} type="button" ref={node=>{cellRefs.current[cell]=node;}}
-        className={`hop-cell ${bee?'is-bee':''} ${worker?'is-worker':''} ${bee&&cell===selected?'is-selected':''} ${idle&&bee&&cell===selected?'is-idle':''} ${pollen?'is-pollen':''} ${hive?'is-hive':''} ${flowerChoice?'is-flower':''} ${filtered===cell?'is-filtered':''} ${openLanding?'is-landing':''} ${dead?'is-dead':''} ${tool?`is-tool is-${mode}`:''} ${hinted?'is-hint':''} ${flight?.kind==='seed'&&flight.to===cell?'is-new':''}`}
+        className={`hop-cell ${bee?'is-bee':''} ${worker?'is-worker':''} ${bee&&cell===selected?'is-selected':''} ${idle&&bee&&cell===selected?'is-idle':''} ${pollen?'is-pollen':''} ${hive?'is-hive':''} ${flowerChoice?'is-flower':''} ${filtered===cell?'is-filtered':''} ${landing?'is-landing':''} ${tool?`is-tool is-${mode}`:''} ${hinted?'is-hint':''} ${flight?.kind==='seed'&&flight.to===cell?'is-new':''}`}
         style={cellStyle(cell,width,metrics)} disabled={!interactive} aria-label={label}
         aria-pressed={bee?cell===selected:flowerChoice?filtered===cell:undefined}
         onClick={()=>onCell(cell)}>

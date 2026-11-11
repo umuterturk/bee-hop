@@ -86,20 +86,12 @@ button:focus-visible,a:focus-visible{outline:3px solid #8a5a12;outline-offset:3p
 .hop-cell.is-bee{z-index:3}
 .hop-cell.is-flower{cursor:pointer}
 .hop-cell.is-filtered{transform:scale(1.04)}
-.hop-cell.is-landing,.hop-cell.is-tool,.hop-cell.is-dead{z-index:3;cursor:pointer}
+.hop-cell.is-landing,.hop-cell.is-tool{z-index:3;cursor:pointer}
 .hop-cell.is-hint{z-index:4}
 .hop-cell.is-landing{
-  filter:
-    drop-shadow(2px 0 0 #146b22)
-    drop-shadow(-2px 0 0 #146b22)
-    drop-shadow(0 2px 0 #146b22)
-    drop-shadow(0 -2px 0 #146b22);
+  filter:drop-shadow(0 0 8px #d4ff6aee) drop-shadow(0 0 2px #f6ffc8);
 }
-.hop-cell.is-landing::after{
-  content:"";position:absolute;inset:0;z-index:1;pointer-events:none;
-  background:#1f9a32;opacity:.55;mix-blend-mode:multiply;
-}
-.hop-cell.is-dead{filter:grayscale(.92) brightness(.68) contrast(1.08)}
+.hop-cell.is-landing .hop-hex{filter:saturate(1.35) brightness(1.08)}
 .hop-cell.is-tool{
   filter:
     drop-shadow(1.5px 0 0 #a56b12)
@@ -107,11 +99,8 @@ button:focus-visible,a:focus-visible{outline:3px solid #8a5a12;outline-offset:3p
     drop-shadow(0 1.5px 0 #a56b12)
     drop-shadow(0 -1.5px 0 #a56b12);
 }
-.hop-stage.has-landings .hop-cell:not(.is-landing):not(.is-dead):not(.is-bee):not(.is-flower):not(.is-tool):not(.is-pollen){
-  filter:brightness(.78);
-}
 .hop-cell.is-selected .hop-ring{animation:hop-ring-spin 6s linear infinite}
-.hop-cell.is-landing:active,.hop-cell.is-tool:active,.hop-cell.is-flower:active,.hop-cell.is-dead:active{transform:scale(.94)}
+.hop-cell.is-landing:active,.hop-cell.is-tool:active,.hop-cell.is-flower:active{transform:scale(.94)}
 .hop-hex{position:absolute;inset:0;z-index:0;pointer-events:none;transform:scale(1.12);transform-origin:center}
 .hop-mark{position:relative;z-index:2;width:72%;pointer-events:none}
 .hop-mark.is-bee,.hop-mark.is-beeWorker{width:86%}
@@ -124,7 +113,9 @@ button:focus-visible,a:focus-visible{outline:3px solid #8a5a12;outline-offset:3p
 .hop-spark{position:absolute;top:0;right:4%;z-index:3;width:34%;pointer-events:none}
 .hop-ghost{position:absolute;left:0;top:0;width:var(--hex-w);height:var(--hex-h);z-index:6;pointer-events:none;display:grid;place-items:center;opacity:1}
 .hop-ghost .hop-mark{width:86%}
-.hop-bit{position:fixed;left:0;top:0;z-index:30;pointer-events:none;background:transparent}
+.hop-bit,.hop-burst{position:fixed;left:0;top:0;pointer-events:none;background:transparent}
+.hop-bit{z-index:30}
+.hop-burst{z-index:32;filter:drop-shadow(0 0 8px #ffe56ae6)}
 
 /* —— Footer note + tool dock —— */
 .hop-note{

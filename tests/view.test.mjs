@@ -1,8 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
 import {LEVELS} from '../src/content/catalog.js';
 import {legalJumps,statusOf} from '../src/engine/abilities.js';
-import {boardNote,boosterCallout,hexTile} from '../src/view/presentation.js';
+import {boardNote,boosterCallout,collectBurst,hexTile,stuckChoice} from '../src/view/presentation.js';
 
 test('playing with no landings never asks for a green hex',()=>{
   const round={turns:4,usedUndo:false,bees:[32],pollen:[20],charges:{tunnel:0,seed:1,worker:0},past:[1]};
@@ -48,22 +49,62 @@ test('a selected bee with no hops points at the other bee',()=>{
   assert.doesNotMatch(note,/green hex|Plant a flower/i);
 });
 
-test('every cell shares the honey hex, with a blossom or a stone on top',()=>{
+test('honey cells stay honey, and every landing uses the vivid green hex',()=>{
   const empty=hexTile({});
   assert.equal(empty.tile,'hexHoney');
   assert.equal(empty.mark,null);
-  const live=hexTile({landing:true,dead:false});
-  assert.equal(live.tile,'hexHoney');
+  const live=hexTile({landing:true});
+  assert.equal(live.tile,'hexLanding');
   assert.equal(live.mark,null);
-  const flower=hexTile({pollen:true});
-  assert.equal(flower.tile,empty.tile);
-  assert.equal(flower.mark,'flower');
   const trap=hexTile({landing:true,dead:true});
-  assert.equal(trap.tile,empty.tile);
-  assert.equal(trap.mark,'stoneMoss');
+  assert.equal(trap.tile,'hexLanding');
+  assert.equal(trap.mark,null);
+  const flower=hexTile({pollen:true});
+  assert.equal(flower.tile,'hexHoney');
+  assert.equal(flower.mark,'flower');
   const bee=hexTile({settledBee:true,worker:false});
-  assert.equal(bee.tile,empty.tile);
+  assert.equal(bee.tile,'hexHoney');
   assert.equal(bee.mark,'bee');
+});
+
+test('cells that cannot be played are not grayed out',()=>{
+  const css=readFileSync(new URL('../src/view/game.css',import.meta.url),'utf8');
+  assert.doesNotMatch(css,/has-landings[\s\S]{0,220}brightness/);
+  assert.doesNotMatch(css,/\.hop-cell\.is-dead\{[^}]*grayscale/);
+  assert.doesNotMatch(css,/mix-blend-mode:\s*multiply/);
+  assert.match(css,/\.hop-cell\.is-landing\{[^}]*drop-shadow/);
+});
+
+test('a stuck field lets the player spend a life, including the last one',()=>{
+  const choice=stuckChoice({undoAvailable:false,hearts:{count:1}});
+  assert.equal(choice.canRestart,true);
+  assert.equal(choice.canUndo,false);
+  assert.match(choice.body,/life/i);
+  const withUndo=stuckChoice({undoAvailable:true,hearts:{count:3}});
+  assert.equal(withUndo.canRestart,true);
+  assert.equal(withUndo.canUndo,true);
+  assert.match(withUndo.body,/undo/i);
+  const waiting=stuckChoice({undoAvailable:false,hearts:{count:0}});
+  assert.equal(waiting.canRestart,false);
+  assert.match(waiting.body,/life/i);
+});
+
+test('a stuck board spends a life only when the player chooses to restart',()=>{
+  const source=readFileSync(new URL('../src/view/Game.jsx',import.meta.url),'utf8');
+  assert.match(source,/applyLifeRestart/);
+  assert.match(source,/Lose a life/);
+  assert.doesNotMatch(source,/status!=='stuck'[\s\S]{0,220}spendHeart/);
+});
+
+test('collecting a flower plans a sparkle burst',()=>{
+  const burst=collectBurst();
+  assert.ok(burst.length>=6);
+  assert.ok(burst.every(bit=>bit.sprite.startsWith('sparkle')));
+  const places=new Set(burst.map(bit=>`${bit.dx},${bit.dy}`));
+  assert.equal(places.size,burst.length);
+  const board=readFileSync(new URL('../src/view/Board.jsx',import.meta.url),'utf8');
+  assert.match(board,/collectBurst/);
+  assert.match(board,/picked/);
 });
 
 test('the screenshot board (last flower, bee off-line) is still playing with zero hops',()=>{

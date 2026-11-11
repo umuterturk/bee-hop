@@ -5,11 +5,11 @@ import {legalJumps,seedTargets,statusOf,summonTargets,tunnelTargets} from '../en
 import {commit,newRound,spendDance,toBoard,undo} from '../session/round.js';
 import {findHint} from '../session/hint.js';
 import {loadProgress,saveProgress} from '../session/progress.js';
-import {HEART_CAP,freshHearts,grantHeart,heartWait,refillHearts,spendHeart} from '../session/hearts.js';
+import {HEART_CAP,applyLifeRestart,attemptLocked,freshHearts,grantHeart,heartWait,refillHearts} from '../session/hearts.js';
 import {track} from '../services/analytics.js';
 import {playCue,setMusic,unlockAudio} from '../services/audio.js';
 import {buzz} from '../services/haptics.js';
-import {boardNote,boosterCallout,deadEndCells,earnedBadges,pollenLeft} from './presentation.js';
+import {boardNote,boosterCallout,earnedBadges,pollenLeft,stuckChoice} from './presentation.js';
 import Board from './Board.jsx';
 import {Sprite,SpriteButton,SpriteSurface} from './Sprite.jsx';
 
@@ -44,6 +44,7 @@ export default function Game(){
   const beeRef=useRef(selectedBee);
   const filterRef=useRef(filtered);
   const hintToken=useRef(0);
+  const restarting=useRef(false);
   const audioReady=useRef(false);
   const acted=useRef(false);
   const jarRef=useRef(null);
@@ -62,22 +63,23 @@ export default function Game(){
   const allJumps=boardJumps.filter(move=>move.bee===selected);
   const jumps=filtered==null?allJumps:allJumps.filter(move=>move.over===filtered);
   const otherJumps=boardJumps.length-allJumps.length;
-  const deadEnds=status==='playing'&&!mode?deadEndCells(board,jumps):new Set();
   const toolCells=mode==='tunnel'?tunnelTargets(board,selected):mode==='seed'?seedTargets(board,selected):mode==='summon'?summonTargets(board):[];
   const hintStep=hint?.outcome==='win'?hint.steps[hint.layer]:null;
   const reduced=progress.settings.reduceMotion;
-  const note=boardNote({status,hint,mode,filtered:filtered!=null,level,round,jumpCount:jumps.length,otherJumps});
+  const undoAvailable=round.past.length>0&&(round.undoLeft===null||round.undoLeft>0);
+  const note=boardNote({status,hint,mode,filtered:filtered!=null,level,round,jumpCount:jumps.length,otherJumps,undoAvailable});
   const noHops=status==='playing'&&!mode&&jumps.length===0&&otherJumps===0;
   const callout=boosterCallout({
-    status,mode,jumpCount:jumps.length,otherJumps,charges:round.charges,
-    undoAvailable:round.past.length>0&&(round.undoLeft===null||round.undoLeft>0)
+    status,mode,jumpCount:jumps.length,otherJumps,charges:round.charges,undoAvailable
   });
   const waveName=WAVE_NAMES[level.wave];
   const waveStart=level.wave*5;
   const hearts=refillHearts(progress.hearts,now);
-  const locked=hearts.count<=0;
+  const locked=attemptLocked(hearts,round);
+  const stuck=stuckChoice({undoAvailable,hearts});
+  const lifeOffer=applyLifeRestart(hearts,round,status,now);
   const waitLabel=heartWait(hearts,now);
-  useEffect(()=>{track('level_start',{levelId:level.id,wave:level.wave,boss:level.boss});acted.current=false;},[level.id,deal]);
+  useEffect(()=>{track('level_start',{levelId:level.id,wave:level.wave,boss:level.boss});acted.current=false;restarting.current=false;},[level.id,deal]);
   useEffect(()=>{
     if(status!=='won')return;
     const current=roundRef.current;
@@ -97,11 +99,6 @@ export default function Game(){
   useEffect(()=>{
     if(status!=='stuck')return;
     track('level_stuck',{levelId:level.id});
-    if(roundRef.current.failedHeart)return;
-    const marked={...roundRef.current,failedHeart:true};
-    roundRef.current=marked;
-    setRound(marked);
-    setProgress(prev=>({...prev,hearts:spendHeart(prev.hearts,Date.now())}));
   },[status,level.id,deal]);
   useEffect(()=>{
     const timer=setInterval(()=>setNow(Date.now()),1000);
@@ -143,31 +140,36 @@ export default function Game(){
   function resetSelection(nextRound,bee=nextRound.bees[0]){
     setMode(null);setFiltered(null);setHint(null);setFlight(null);setSelectedBee(bee);
   }
-  function chargeAttempt(){
+  function payForLeave(){
     const current=roundRef.current;
-    if(current.failedHeart||statusOf(toBoard(current))==='won')return false;
-    if(current.turns===0&&!current.usedUndo&&!current.usedTool&&current.past.length===0)return false;
-    const marked={...current,failedHeart:true};
-    roundRef.current=marked;
-    setRound(marked);
-    setProgress(prev=>({...prev,hearts:spendHeart(prev.hearts,Date.now())}));
-    return true;
+    return applyLifeRestart(refillHearts(hearts,Date.now()),current,statusOf(toBoard(current)),Date.now());
+  }
+  function openLevel(nextLevel,result){
+    const fresh=newRound(nextLevel);
+    if(result.lifePaid)fresh.lifePaid=true;
+    roundRef.current=fresh;
+    setLevelId(nextLevel.id);
+    setRound(fresh);
+    resetSelection(fresh);
+    setDeal(value=>value+1);
+    setHelp(false);
   }
   function goto(id){
-    if(locked||id<1||id>LEVELS.length||id>progress.unlocked)return;
-    if(chargeAttempt()&&hearts.count<=1)return;
-    const nextLevel=LEVELS[id-1];
-    const fresh=newRound(nextLevel);
-    roundRef.current=fresh;
-    setLevelId(id);setRound(fresh);resetSelection(fresh);setDeal(value=>value+1);setHelp(false);
+    if(locked||id<1||id>LEVELS.length||id>progress.unlocked||restarting.current)return;
+    const result=payForLeave();
+    if(!result.ok)return;
+    restarting.current=true;
+    if(result.spendsLife)setProgress(prev=>({...prev,hearts:result.hearts}));
+    openLevel(LEVELS[id-1],result);
   }
   function restart(){
-    if(locked)return;
-    if(chargeAttempt()&&hearts.count<=1)return;
-    const fresh=newRound(level);
-    roundRef.current=fresh;
-    setRound(fresh);resetSelection(fresh);setDeal(value=>value+1);
-    track('restart',{levelId:level.id});
+    if(restarting.current)return;
+    const result=payForLeave();
+    if(!result.ok)return;
+    restarting.current=true;
+    if(result.spendsLife)setProgress(prev=>({...prev,hearts:result.hearts}));
+    openLevel(level,result);
+    track('restart',{levelId:level.id,spentLife:result.spendsLife});
     playCue('undo',progress.settings.sound);
   }
   function play(action){
@@ -291,18 +293,18 @@ export default function Game(){
       </div>
     </header>
 
-    <div className={`hop-stage ${jumps.length&&!mode?'has-landings':''} ${noHops?'is-no-hops':''}`}>
+    <div className={`hop-stage ${noHops?'is-no-hops':''}`}>
       <Board key={deal} width={level.width} height={level.height} round={round} selected={selected} jumps={jumps}
         pollenChoices={allJumps.map(move=>move.over)} toolCells={toolCells} hintStep={hintStep} mode={mode}
         flight={flight} reduced={reduced} idle={nudge} status={status}
-        filtered={filtered} deadEnds={deadEnds} onCell={onCell}/>
+        filtered={filtered} onCell={onCell}/>
     </div>
 
     <p className="hop-note" aria-live="polite">{locked?`Out of hearts · ${waitLabel}`:note}</p>
 
     <div className="hop-dock" role="toolbar" aria-label="Boosters">
       {booster('undo','buttonUndo','Undo',{
-        count:round.undoLeft,aria:undoLabel,disabled:locked||!round.past.length||(round.undoLeft!==null&&round.undoLeft<=0),
+        count:round.undoLeft,aria:undoLabel,disabled:locked||!undoAvailable,
         onClick:doUndo
       })}
       {grant.tunnel>0&&booster('tunnel','buttonTunnel','Tunnel',{
@@ -332,8 +334,8 @@ export default function Game(){
       <section className="hop-sheet" role="dialog" aria-label="How to play">
         <h2>{level.name}</h2>
         <p className="hop-wave-label">{waveName}{level.boss?' · Boss':''}</p>
-        <p>Every hop crosses one flower and lands on the hex just past it. A green edge marks a landing.</p>
-        <p>A stone is a trap — landing there leaves no hops. Undo rewinds one move. Hint shows a landing that clears the field.</p>
+        <p>Every hop crosses one flower and lands on the hex just past it. A bright green hex marks a landing.</p>
+        <p>Undo rewinds one move. Hint shows a landing that clears the field. If no hops are left, lose a life and play the field again.</p>
         <p>If no green hexes appear, the bee cannot hop from here. Use a booster or undo. Every field can still be cleared without boosters.</p>
         <p className="hop-wave-label" id="hop-levels-label">Levels in this wave</p>
         <div className="hop-tabs" role="group" aria-labelledby="hop-levels-label">
@@ -350,7 +352,7 @@ export default function Game(){
           <label><input type="checkbox" checked={progress.settings.music} onChange={event=>patchSettings({music:event.target.checked})}/> Music</label>
           <label><input type="checkbox" checked={progress.settings.haptics} onChange={event=>patchSettings({haptics:event.target.checked})}/> Haptics</label>
           <label><input type="checkbox" checked={progress.settings.reduceMotion} onChange={event=>patchSettings({reduceMotion:event.target.checked})}/> Reduce motion</label>
-          <button type="button" className="hop-option" disabled={locked} onClick={()=>{setHelp(false);restart();}}>Restart field</button>
+          <button type="button" className="hop-option" disabled={locked||!lifeOffer.ok} onClick={()=>{setHelp(false);restart();}}>{lifeOffer.spendsLife?'Lose a life and restart':'Restart field'}</button>
           <button type="button" className="hop-option" disabled={hearts.count>=HEART_CAP} onClick={()=>setProgress(prev=>({...prev,hearts:grantHeart(prev.hearts,Date.now())}))}>New life</button>
         </div>
       </section>
@@ -374,12 +376,14 @@ export default function Game(){
 
     {status==='stuck'&&<div className="hop-overlay" role="presentation">
       <section className="hop-stuck-card" role="dialog" aria-labelledby="hop-stuck-title">
-        <p className="hop-kicker">No hops left</p>
+        <p className="hop-kicker">{stuck.title}</p>
         <h2 id="hop-stuck-title" style={{margin:'6px 0 0',fontFamily:'"Lilita One",system-ui,sans-serif',fontSize:28,fontWeight:400,color:'#7a4e12'}}>Stuck!</h2>
-        <p>Undo a move or restart the field.</p>
+        <p>{stuck.body}{!stuck.canRestart&&waitLabel?` ${waitLabel}`:''}</p>
         <div className="hop-stuck-actions">
-          <SpriteSurface as="button" type="button" className="hop-next" name="buttonGold" disabled={locked||!round.past.length||(round.undoLeft!==null&&round.undoLeft<=0)} onClick={doUndo}>Undo</SpriteSurface>
-          <button type="button" className="hop-ghost-btn" disabled={locked} onClick={restart}>Restart</button>
+          {stuck.canUndo&&<SpriteSurface as="button" type="button" className="hop-next" name="buttonGold" onClick={doUndo}>Undo</SpriteSurface>}
+          {stuck.canUndo
+            ?<button type="button" className="hop-ghost-btn" disabled={!stuck.canRestart} onClick={restart}>Lose a life</button>
+            :<SpriteSurface as="button" type="button" className="hop-next" name="buttonGold" disabled={!stuck.canRestart} onClick={restart}>Lose a life</SpriteSurface>}
         </div>
       </section>
     </div>}
