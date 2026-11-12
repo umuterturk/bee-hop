@@ -222,7 +222,7 @@ export default function Board({
         onPointerDown={event=>{if(!reduced&&(landing||tool||flowerChoice))tapBurst(event.currentTarget);}}
         onClick={()=>onCell(cell)}>
         <Sprite name={tile} className="hop-hex"/>
-        {landing&&<Sprite name="sparkleSmall" className="hop-landing-spark"/>}}
+        {landing&&<Sprite name="sparkleSmall" className="hop-landing-spark"/>}
         {piece&&<Sprite name={piece} className={`hop-mark is-${piece}`}/>}
         {hinted&&<Sprite name="sparkleSmall" className="hop-spark"/>}
       </button>;
@@ -232,7 +232,6 @@ export default function Board({
       const worker=cell!==round.lead;
       const picked=cell===selected;
       return <div key={`bee-${cell}`} className={`hop-bee-pin ${picked?'is-selected':''} ${idle&&picked?'is-idle':''} ${worker?'is-worker':''}`} style={cellStyle(cell,width,metrics)} aria-hidden="true">
-        <span className="hop-bee-shadow"/>
         {picked&&<Sprite name="ringDashed" className="hop-ring"/>}
         <Sprite name={worker?'beeWorker':'bee'} className={`hop-mark is-${worker?'beeWorker':'bee'}`}/>
         {picked&&<Sprite name="sparkleSmall" className="hop-bee-glint"/>}

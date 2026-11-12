@@ -80,16 +80,40 @@ test('valid landings pulse a bright green glow and the bee draws above its ring'
   assert.ok(Number(bee[1])>Number(ring[1]));
 });
 
-test('restart lives in the menu, not the booster row',()=>{
+test('restart sits under the field with undo and hint',()=>{
   const source=readFileSync(new URL('../src/view/Game.jsx',import.meta.url),'utf8');
   const dock=source.slice(source.indexOf('aria-label="Boosters"'),source.indexOf('hop-sheet-backdrop'));
-  assert.doesNotMatch(dock,/buttonRestart/);
-  assert.doesNotMatch(dock,/>Restart</);
+  assert.match(dock,/buttonRestart/);
+  assert.match(dock,/'Restart'/);
+  assert.match(dock,/restart\(\)/);
   const sheetStart=source.indexOf('hop-sheet-backdrop');
   const sheet=source.slice(sheetStart,source.indexOf("status==='won'",sheetStart));
   assert.match(sheet,/buttonRestart/);
   assert.match(sheet,/Restart field/);
   assert.match(sheet,/restart\(\)/);
+});
+
+test('the bee stays bee-sized with a soft shadow',()=>{
+  const css=readFileSync(new URL('../src/view/game.css',import.meta.url),'utf8');
+  const bee=css.match(/\.hop-mark\.is-bee,\.hop-mark\.is-beeWorker\{[^}]*\}/);
+  assert.ok(bee);
+  assert.match(bee[0],/width:\s*86%/);
+  assert.match(bee[0],/drop-shadow\(0 0 6px #ffe56ae6\)/);
+  assert.doesNotMatch(bee[0],/#2a1608|#3a2208/);
+  assert.doesNotMatch(css,/width:\s*(108|116|124|128)%/);
+  assert.doesNotMatch(css,/hop-bee-shadow/);
+  const board=readFileSync(new URL('../src/view/Board.jsx',import.meta.url),'utf8');
+  assert.doesNotMatch(board,/hop-bee-shadow/);
+});
+
+test('a flower mark is centered in its hex instead of pushed down',()=>{
+  const board=readFileSync(new URL('../src/view/Board.jsx',import.meta.url),'utf8');
+  assert.doesNotMatch(board,/hop-landing-spark"\/>\}\}/);
+  const css=readFileSync(new URL('../src/view/game.css',import.meta.url),'utf8');
+  const flower=css.match(/\.hop-mark\.is-flower\{[^}]*\}/);
+  assert.ok(flower);
+  assert.match(flower[0],/width:\s*84%/);
+  assert.doesNotMatch(flower[0],/drop-shadow/);
 });
 
 test('a stuck field lets the player spend a life, including the last one',()=>{
