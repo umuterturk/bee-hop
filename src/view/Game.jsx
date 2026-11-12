@@ -257,10 +257,8 @@ export default function Game(){
   }
   function booster(id,sprite,label,{count,disabled,pressed,onClick,aria}){
     return <div className={`hop-booster is-${id} ${disabled?'is-unavailable':''} ${callout===id?'is-callout':''}`}>
-      <SpriteButton name={sprite} className={`hop-tool is-${id}`} aria-label={aria||label} aria-pressed={pressed} disabled={disabled} onClick={onClick}>
-        {count!=null&&<span className="hop-count">{count}</span>}
-      </SpriteButton>
-      <span className="hop-tool-label">{label}</span>
+      <SpriteButton name={sprite} className={`hop-tool is-${id}`} aria-label={aria||label} aria-pressed={pressed} disabled={disabled} onClick={onClick}/>
+      {count!=null&&<span className="hop-count">{count}</span>}
     </div>;
   }
 
@@ -271,17 +269,16 @@ export default function Game(){
   return <div className={`hop ${level.boss?'is-boss':''} ${reduced?'is-reduced':''} ${locked?'is-tired':''} ${noHops?'is-no-hops':''}`} data-status={status} data-level={level.id}
     style={{'--board-aspect':boardFrame(level.width,level.height).aspect}}
     onPointerDown={poke}>
-    <div className="hop-panel">
     <header className="hop-hud">
       <div className="hop-hud-level">
         <div className="hop-level-badge">
-          {level.boss&&<Sprite name="crown" width={16} className="hop-boss-crown"/>}
+          {level.boss&&<Sprite name="crown" width={14} className="hop-boss-crown"/>}
           <span>{level.boss?'Boss':'Level'}</span><strong>{String(level.id).padStart(2,'0')}</strong>
         </div>
       </div>
       <div className={`hop-objective ${jarPulse?'is-pulse':''}`} onAnimationEnd={()=>setJarPulse(0)} aria-label={`${pollenLeft(round)} flowers left`}>
         <span ref={jarRef} className="hop-objective-art">
-          <Sprite name="flower" width={36}/>
+          <Sprite name="flower" width={22}/>
         </span>
         <p><strong>{pollenLeft(round)}</strong><span>left</span></p>
       </div>
@@ -289,7 +286,7 @@ export default function Game(){
         <div className="hop-hearts" aria-label={`${hearts.count} of ${HEART_CAP} hearts`}>
           <div className="hop-heart-row">
             {Array.from({length:HEART_CAP},(_,index)=><span key={index} className="hop-heart-slot">
-              <Sprite name={index<hearts.count?'heart':'heartOutline'} width={22}/>
+              <Sprite name={index<hearts.count?'heart':'heartOutline'} width={16}/>
               {waitLabel&&index===hearts.count&&<span className="hop-heart-wait">{waitLabel}</span>}
             </span>)}
           </div>
@@ -303,9 +300,8 @@ export default function Game(){
         pollenChoices={allJumps.map(move=>move.over)} toolCells={toolCells} hintStep={hintStep} mode={mode}
         flight={flight} reduced={reduced} idle={nudge} status={status}
         filtered={filtered} onCell={onCell}/>
+      <p className="hop-note" aria-live="polite">{locked?`Out of hearts · ${waitLabel}`:note}</p>
     </div>
-
-    <p className="hop-note" aria-live="polite">{locked?`Out of hearts · ${waitLabel}`:note}</p>
 
     <div className="hop-dock" role="toolbar" aria-label="Boosters">
       {booster('undo','buttonUndo','Undo',{
@@ -338,7 +334,6 @@ export default function Game(){
         disabled:locked||status!=='playing'||(round.danceLeft!==null&&round.danceLeft<=0),
         onClick:doHint
       })}
-    </div>
     </div>
 
     {help&&<div className="hop-sheet-backdrop" role="presentation" onClick={event=>{if(event.target===event.currentTarget)setHelp(false);}}>
