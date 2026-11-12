@@ -11,11 +11,11 @@ button:disabled{cursor:default}
 button:focus-visible,a:focus-visible{outline:3px solid #8a5a12;outline-offset:3px}
 
 .hop{
-  /* As wide as the screen until a full-width honeycomb would leave the viewport.
-     Side inset stays small so the board can use about 96% of a phone. */
+  /* As wide as the screen until a full-height honeycomb would leave the viewport.
+     The comb is portrait, so a wide phone narrows the column to keep it on screen. */
   --fit-chrome:168px;
   --fit-gutter:16px;
-  --board-max:calc((100dvh - var(--fit-chrome)) * var(--board-aspect, 1.2));
+  --board-max:calc((100dvh - var(--fit-chrome)) * var(--board-aspect, 0.8));
   width:min(100%, calc(var(--board-max) + var(--fit-gutter)));
   height:100dvh;max-height:100dvh;margin:0 auto;
   display:flex;flex-direction:column;justify-content:flex-start;gap:6px;
@@ -68,7 +68,7 @@ button:focus-visible,a:focus-visible{outline:3px solid #8a5a12;outline-offset:3p
 .hop-help-button{width:32px}
 .hop.is-tired .hop-stage,.hop.is-tired .hop-dock{opacity:.55}
 
-/* —— Board, almost the full screen width —— */
+/* —— Board, taller than it is wide —— */
 .hop-stage{
   flex:1 1 auto;min-height:0;width:100%;
   display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;
@@ -85,8 +85,8 @@ button:focus-visible,a:focus-visible{outline:3px solid #8a5a12;outline-offset:3p
   background-image:
     radial-gradient(ellipse at 50% 0%,#fff3c8d0,transparent 56%),
     radial-gradient(ellipse at 50% 115%,#a86422c4,transparent 48%),
-    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='28' height='48' viewBox='0 0 28 48.497'><path d='M14 0 28 8.083v16.166L14 32.332 0 24.249V8.083zM0 24.249 14 32.332v16.165L0 56.58l-14-8.083V32.332zM28 24.249l14 8.083v16.165l-14 8.083-14-8.083V32.332z' fill='none' stroke='%23fff6dc' stroke-opacity='.34' stroke-width='1.15'/></svg>");
-  background-size:auto,auto,28px 48.497px;
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='49' height='28' viewBox='0 0 48.497 28'><path d='M0 14 8.083 0h16.166L32.332 14 24.249 28H8.083zM24.249 28 32.332 14h16.165L56.58 28l-8.083 14H32.332zM24.249 0 32.332-14h16.165L56.58 0 48.497 14H32.332z' fill='none' stroke='%23fff6dc' stroke-opacity='.34' stroke-width='1.15'/></svg>");
+  background-size:auto,auto,48.497px 28px;
   box-shadow:0 10px 24px #16382c55,0 0 0 1px #fff3c488,inset 0 10px 16px #fff6,inset 0 -16px 22px #7a4516aa;
 }
 .hop-stage.is-no-hops .hop-board{box-shadow:0 0 0 3px #f0c14d,0 10px 24px #16382c55}
@@ -94,7 +94,7 @@ button:focus-visible,a:focus-visible{outline:3px solid #8a5a12;outline-offset:3p
 .hop-cell{
   position:absolute;width:var(--hex-w);height:var(--hex-h);padding:0;border:0;
   display:grid;place-items:center;background:transparent;
-  clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%);
+  clip-path:polygon(25% 0,75% 0,100% 50%,75% 100%,25% 100%,0 50%);
   color:transparent;
 }
 .hop-cell:disabled{opacity:1}
@@ -128,7 +128,7 @@ button:focus-visible,a:focus-visible{outline:3px solid #8a5a12;outline-offset:3p
 .hop-cell.is-tool.is-summon .hop-hex{animation:hop-landing-breathe 1s ease-in-out infinite}
 .hop-cell.is-selected .hop-ring{animation:hop-ring-spin 6s linear infinite}
 .hop-cell.is-landing:active,.hop-cell.is-tool:active,.hop-cell.is-flower:active{transform:scale(.9)}
-.hop-hex{position:absolute;left:50%;top:50%;z-index:0;width:112%;height:auto;pointer-events:none;transform:translate(-50%,-50%);transform-origin:center}
+.hop-hex{position:absolute;left:50%;top:50%;z-index:0;width:96.9948%;height:129.3265%;pointer-events:none;transform:translate(-50%,-50%) rotate(90deg);transform-origin:center}
 .hop-mark{position:relative;z-index:2;width:72%;pointer-events:none}
 .hop-mark.is-bee,.hop-mark.is-beeWorker{
   z-index:5;width:86%;
@@ -181,7 +181,8 @@ button:focus-visible,a:focus-visible{outline:3px solid #8a5a12;outline-offset:3p
   flex:0 0 auto;
   display:flex;flex-wrap:nowrap;justify-content:center;align-items:center;
   gap:clamp(6px,1.8vw,10px);
-  min-height:var(--dock);padding:2px 0;
+  min-height:var(--dock);padding:4px 8px;border-radius:16px;
+  background:#fffaf0d4;
   animation:hop-rise .45s .1s cubic-bezier(.2,.9,.2,1) both;
 }
 .hop-booster{position:relative;display:flex;align-items:center;justify-content:center;flex:0 0 auto;width:clamp(42px,12vw,52px)}
@@ -296,7 +297,7 @@ button:focus-visible,a:focus-visible{outline:3px solid #8a5a12;outline-offset:3p
   0%,100%{filter:drop-shadow(0 0 5px #eaffb8) drop-shadow(0 0 12px #46e85ccc)}
   50%{filter:drop-shadow(0 0 10px #fff) drop-shadow(0 0 22px #d6ff6a)}
 }
-@keyframes hop-landing-breathe{0%,100%{transform:translate(-50%,-50%) scale(1)}50%{transform:translate(-50%,-50%) scale(1.1)}}
+@keyframes hop-landing-breathe{0%,100%{transform:translate(-50%,-50%) rotate(90deg) scale(1)}50%{transform:translate(-50%,-50%) rotate(90deg) scale(1.1)}}
 @keyframes hop-pop{from{transform:scale(.4)}to{transform:scale(1)}}
 @keyframes hop-pop-in{from{opacity:0;transform:scale(.86)}to{opacity:1;transform:scale(1)}}
 @keyframes hop-drop{from{opacity:0;transform:translateY(-12px)}to{opacity:1;transform:translateY(0)}}

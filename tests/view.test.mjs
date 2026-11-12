@@ -204,6 +204,9 @@ test('the meadow shows around the board, with icon-only boosters outside it',()=
   const round=css.match(/\.hop-dock \.hop-sprite-button\{[^}]*\}/);
   assert.ok(round);
   assert.match(round[0],/border-radius:\s*50%/);
+  const dockRule=css.match(/(?:^|\n)\.hop-dock\{[^}]*\}/);
+  assert.ok(dockRule);
+  assert.match(dockRule[0],/background:\s*#fffaf0d4/);
   assert.match(css,/\.hop-booster\.is-unavailable\{[^}]*opacity/);
 });
 
