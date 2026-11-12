@@ -309,6 +309,11 @@ export default function Game(){
         count:round.undoLeft,aria:undoLabel,disabled:locked||!undoAvailable,
         onClick:doUndo
       })}
+      {booster('restart','buttonRestart','Restart',{
+        aria:lifeOffer.spendsLife?'Restart, costs a life':'Restart',
+        disabled:locked||!lifeOffer.ok,
+        onClick:()=>{poke();restart();}
+      })}
       {grant.tunnel>0&&booster('tunnel','buttonTunnel','Tunnel',{
         count:round.charges.tunnel,aria:`Tunnel, ${round.charges.tunnel} left`,pressed:mode==='tunnel',
         disabled:locked||round.charges.tunnel<=0,
@@ -337,7 +342,7 @@ export default function Game(){
         <h2>{level.name}</h2>
         <p className="hop-wave-label">{waveName}{level.boss?' · Boss':''}</p>
         <p>Every hop crosses one flower and lands on the hex just past it. A bright pulsing hex marks a landing.</p>
-        <p>Undo rewinds one move. Hint shows a landing that clears the field. Restart, in this menu, plays the field again.</p>
+        <p>Undo rewinds one move. Restart, under the field, plays it again. Hint shows a landing that clears the field.</p>
         <p>If no green hexes appear, the bee cannot hop from here. Use a booster or undo. Every field can still be cleared without boosters.</p>
         <button type="button" className="hop-menu-restart" disabled={locked||!lifeOffer.ok} onClick={()=>{setHelp(false);restart();}}>
           <Sprite name="buttonRestart" width={52}/>

@@ -119,37 +119,27 @@ button:focus-visible,a:focus-visible{outline:3px solid #8a5a12;outline-offset:3p
 .hop-hex{position:absolute;inset:0;z-index:0;pointer-events:none;transform:scale(1.12);transform-origin:center}
 .hop-mark{position:relative;z-index:2;width:72%;pointer-events:none}
 .hop-mark.is-bee,.hop-mark.is-beeWorker{
-  z-index:5;width:108%;
-  filter:
-    drop-shadow(0 0 1px #2a1608)
-    drop-shadow(1.5px 0 0 #2a1608)
-    drop-shadow(-1.5px 0 0 #2a1608)
-    drop-shadow(0 1.5px 0 #2a1608)
-    drop-shadow(0 -1.5px 0 #2a1608)
-    drop-shadow(0 6px 0 #3a2208cc)
-    drop-shadow(0 0 10px #fff4c4);
+  z-index:5;width:86%;
+  filter:drop-shadow(0 0 6px #ffe56ae6) drop-shadow(0 0 2px #fff8);
 }
 .hop-mark.is-bee::after,.hop-mark.is-beeWorker::after{
-  content:"";position:absolute;left:18%;top:8%;width:36%;height:22%;border-radius:50%;
-  background:linear-gradient(#fff,#fff0);opacity:.95;pointer-events:none;
+  content:"";position:absolute;left:24%;top:12%;width:26%;height:16%;border-radius:50%;
+  background:linear-gradient(#fff,#fff0);opacity:.75;pointer-events:none;
 }
 .hop-cell.is-pollen::before{
   content:"";position:absolute;left:50%;top:48%;width:82%;height:70%;
   transform:translate(-50%,-50%);border-radius:50%;pointer-events:none;z-index:1;
   background:radial-gradient(circle,#fffef8 0%,#fff8 42%,transparent 72%);
 }
-.hop-mark.is-flower{
-  width:96%;
-  filter:drop-shadow(0 2px 0 #6d3816cc) drop-shadow(0 0 3px #fff);
-}
+.hop-mark.is-flower{width:84%}
 .hop-mark.is-mango{width:58%}
 .hop-mark.is-stoneMoss{width:78%;opacity:1}
 .hop-mark.is-crown{width:40%}
 .hop-bee-pin.is-idle .hop-mark{animation:hop-bee-pulse 1.15s ease-in-out infinite;transform-origin:center}
-.hop-ring{position:absolute;inset:-30%;z-index:1;width:auto;pointer-events:none}
+.hop-ring{position:absolute;inset:8%;z-index:1;width:auto;pointer-events:none}
 .hop-spark{position:absolute;top:0;right:4%;z-index:3;width:34%;pointer-events:none}
 .hop-bee-glint{
-  position:absolute;top:-8%;right:0;z-index:6;width:34%;pointer-events:none;
+  position:absolute;top:0;right:6%;z-index:6;width:28%;pointer-events:none;
   animation:hop-sparkle 1.3s ease-in-out infinite;
 }
 .hop-bee-pin{
@@ -157,14 +147,8 @@ button:focus-visible,a:focus-visible{outline:3px solid #8a5a12;outline-offset:3p
   pointer-events:none;display:grid;place-items:center;
 }
 .hop-bee-pin.is-selected{z-index:41}
-.hop-bee-shadow{
-  position:absolute;left:10%;right:10%;bottom:4%;height:18%;z-index:0;pointer-events:none;
-  border-radius:50%;background:radial-gradient(ellipse at center,#3a2208d0,transparent 70%);
-}
-.hop-bee-pin .hop-mark.is-bee,.hop-bee-pin .hop-mark.is-beeWorker{width:116%}
-.hop-bee-pin.is-selected .hop-mark.is-bee,.hop-bee-pin.is-selected .hop-mark.is-beeWorker{width:128%}
 .hop-ghost{position:absolute;left:0;top:0;width:var(--hex-w);height:var(--hex-h);z-index:42;pointer-events:none;display:grid;place-items:center;opacity:1}
-.hop-ghost .hop-mark{width:124%}
+.hop-ghost .hop-mark{width:86%}
 .hop-bit,.hop-burst,.hop-tap-ring{position:fixed;left:0;top:0;pointer-events:none;background:transparent}
 .hop-tap-ring{
   z-index:28;border-radius:40%;
