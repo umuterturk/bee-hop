@@ -10,7 +10,8 @@ import {track} from '../services/analytics.js';
 import {playCue,setMusic,unlockAudio} from '../services/audio.js';
 import {buzz} from '../services/haptics.js';
 import {boardNote,boosterCallout,earnedBadges,pollenLeft,stuckChoice} from './presentation.js';
-import Board,{metricsFor} from './Board.jsx';
+import Board from './Board.jsx';
+import {boardFrame} from './layout.js';
 import {Sprite,SpriteButton,SpriteSurface} from './Sprite.jsx';
 
 const BADGE_SPRITE={pure:'heart',clean:'leaf',boss:'crown'};
@@ -268,7 +269,7 @@ export default function Game(){
   const hintLabel=round.danceLeft==null?'Hint':`Hint ${round.danceLeft}`;
 
   return <div className={`hop ${level.boss?'is-boss':''} ${reduced?'is-reduced':''} ${locked?'is-tired':''} ${noHops?'is-no-hops':''}`} data-status={status} data-level={level.id}
-    style={{'--board-aspect':metricsFor(level.width,level.height).aspect}}
+    style={{'--board-aspect':boardFrame(level.width,level.height).aspect}}
     onPointerDown={poke}>
     <div className="hop-panel">
     <header className="hop-hud">

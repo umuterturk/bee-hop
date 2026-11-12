@@ -172,7 +172,7 @@ test('the honeycomb fills the gameplay width so every cell is as large as the fi
   assert.match(board[0],/aspect-ratio:\s*var\(--board-aspect/);
   assert.doesNotMatch(board[0],/100cqw|play-reserve|max-height/);
   assert.doesNotMatch(css,/--play-reserve/);
-  assert.match(view,/style=\{\{'--board-aspect':metricsFor\(level\.width,level\.height\)\.aspect\}\}/);
+  assert.match(view,/style=\{\{'--board-aspect':boardFrame\(level\.width,level\.height\)\.aspect\}\}/);
 });
 
 test('the meadow frames a card that holds the board and the boosters',()=>{

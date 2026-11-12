@@ -2,24 +2,9 @@ import React,{useEffect,useRef,useState} from 'react';
 import {gsap} from 'gsap';
 import {Sprite,frameUrl,peekFrame} from './Sprite.jsx';
 import {collectBurst,hexTile} from './presentation.js';
+import {boardFrame,cellStyle,placeLabel} from './layout.js';
 import {spriteStyle} from './sprites.js';
 
-export function metricsFor(width,height){
-  const boardWidth=width+.5;
-  const boardHeight=1+(height-1)*.75;
-  return {boardWidth,boardHeight,aspect:boardWidth/(boardHeight*2/Math.sqrt(3))};
-}
-function cellStyle(cell,width,metrics){
-  const row=Math.floor(cell/width),col=cell%width;
-  return {
-    left:`${(col+(row%2)*.5)/metrics.boardWidth*100}%`,
-    top:`${row*.75/metrics.boardHeight*100}%`,
-    '--cell-i':row*width+col
-  };
-}
-function place(cell,width){
-  return `row ${Math.floor(cell/width)+1}, column ${cell%width+1}`;
-}
 function tapBurst(element){
   if(!element)return;
   const box=element.getBoundingClientRect();
@@ -39,7 +24,7 @@ export default function Board({
   width,height,round,selected,jumps,pollenChoices,toolCells,hintStep,mode,
   flight,reduced,idle,status,filtered,onCell
 }){
-  const metrics=metricsFor(width,height);
+  const frame=boardFrame(width,height);
   const boardRef=useRef(null);
   const cellRefs=useRef([]);
   const ghostRef=useRef(null);
@@ -190,7 +175,7 @@ export default function Board({
   },[flight,reduced]);
 
   return <div ref={boardRef} className="hop-board" role="group" aria-label={`${width} by ${height} honeycomb`}
-    style={{'--board-aspect':metrics.aspect,'--hex-w':`${100/metrics.boardWidth}%`,'--hex-h':`${100/metrics.boardHeight}%`}}>
+    style={{'--board-aspect':frame.aspect,'--hex-w':frame.hexWidth,'--hex-h':frame.hexHeight}}>
     {Array.from({length:width*height},(_,cell)=>{
       const occupied=round.bees.includes(cell);
       const bee=hopping&&(cell===flight.from||cell===flight.to)?false:occupied;
@@ -206,18 +191,18 @@ export default function Board({
         landing,pollen,hive,tool,mode,settledBee:bee,worker
       });
       const piece=mark==='bee'||mark==='beeWorker'?null:mark;
-      let label=`Empty hex, ${place(cell,width)}`;
-      if(occupied||bee)label=`${worker?'Worker bee':'Bee'} at ${place(cell,width)}${cell===selected?', selected':''}`;
-      else if(tool&&mode==='tunnel')label=`Burrow to ${place(cell,width)}`;
-      else if(tool&&mode==='seed')label=`Plant a flower at ${place(cell,width)}`;
-      else if(tool)label=`Call a worker at the hive, ${place(cell,width)}`;
-      else if(landing)label=`Land at ${place(cell,width)} and collect the flower`;
-      else if(flowerChoice)label=`Flower at ${place(cell,width)}. Show its landings`;
-      else if(pollen)label=`Flower at ${place(cell,width)}`;
-      else if(hive)label=`Hive at ${place(cell,width)}`;
+      let label=`Empty hex, ${placeLabel(cell,width)}`;
+      if(occupied||bee)label=`${worker?'Worker bee':'Bee'} at ${placeLabel(cell,width)}${cell===selected?', selected':''}`;
+      else if(tool&&mode==='tunnel')label=`Burrow to ${placeLabel(cell,width)}`;
+      else if(tool&&mode==='seed')label=`Plant a flower at ${placeLabel(cell,width)}`;
+      else if(tool)label=`Call a worker at the hive, ${placeLabel(cell,width)}`;
+      else if(landing)label=`Land at ${placeLabel(cell,width)} and collect the flower`;
+      else if(flowerChoice)label=`Flower at ${placeLabel(cell,width)}. Show its landings`;
+      else if(pollen)label=`Flower at ${placeLabel(cell,width)}`;
+      else if(hive)label=`Hive at ${placeLabel(cell,width)}`;
       return <button key={cell} type="button" ref={node=>{cellRefs.current[cell]=node;}}
         className={`hop-cell ${bee?'is-bee':''} ${worker?'is-worker':''} ${bee&&cell===selected?'is-selected':''} ${idle&&bee&&cell===selected?'is-idle':''} ${pollen?'is-pollen':''} ${hive?'is-hive':''} ${flowerChoice?'is-flower':''} ${filtered===cell?'is-filtered':''} ${landing?'is-landing':''} ${tool?`is-tool is-${mode}`:''} ${hinted?'is-hint':''} ${flight?.kind==='seed'&&flight.to===cell?'is-new':''}`}
-        style={cellStyle(cell,width,metrics)} disabled={!interactive} aria-label={label}
+        style={cellStyle(cell,width,height)} disabled={!interactive} aria-label={label}
         aria-pressed={bee?cell===selected:flowerChoice?filtered===cell:undefined}
         onPointerDown={event=>{if(!reduced&&(landing||tool||flowerChoice))tapBurst(event.currentTarget);}}
         onClick={()=>onCell(cell)}>
@@ -231,13 +216,13 @@ export default function Board({
       if(hopping&&(cell===flight.from||cell===flight.to))return null;
       const worker=cell!==round.lead;
       const picked=cell===selected;
-      return <div key={`bee-${cell}`} className={`hop-bee-pin ${picked?'is-selected':''} ${idle&&picked?'is-idle':''} ${worker?'is-worker':''}`} style={cellStyle(cell,width,metrics)} aria-hidden="true">
+      return <div key={`bee-${cell}`} className={`hop-bee-pin ${picked?'is-selected':''} ${idle&&picked?'is-idle':''} ${worker?'is-worker':''}`} style={cellStyle(cell,width,height)} aria-hidden="true">
         {picked&&<Sprite name="ringDashed" className="hop-ring"/>}
         <Sprite name={worker?'beeWorker':'bee'} className={`hop-mark is-${worker?'beeWorker':'bee'}`}/>
         {picked&&<Sprite name="sparkleSmall" className="hop-bee-glint"/>}
       </div>;
     })}
-    {hopping&&<div className="hop-ghost" ref={ghostRef} style={cellStyle(flight.from??flight.to,width,metrics)}>
+    {hopping&&<div className="hop-ghost" ref={ghostRef} style={cellStyle(flight.from??flight.to,width,height)}>
       <Sprite name={flight.kind==='summon'||(flight.from!=null&&round.lead!==flight.to)?'beeWorker':'bee'} className={`hop-mark is-${flight.kind==='summon'||(flight.from!=null&&round.lead!==flight.to)?'beeWorker':'bee'}`}/>
     </div>}
   </div>;
