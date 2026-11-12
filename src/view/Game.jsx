@@ -269,6 +269,7 @@ export default function Game(){
 
   return <div className={`hop ${level.boss?'is-boss':''} ${reduced?'is-reduced':''} ${locked?'is-tired':''} ${noHops?'is-no-hops':''}`} data-status={status} data-level={level.id}
     onPointerDown={poke}>
+    <div className="hop-panel">
     <header className="hop-hud">
       <div className="hop-hud-level">
         <div className="hop-level-badge">
@@ -335,6 +336,7 @@ export default function Game(){
         disabled:locked||status!=='playing'||(round.danceLeft!==null&&round.danceLeft<=0),
         onClick:doHint
       })}
+    </div>
     </div>
 
     {help&&<div className="hop-sheet-backdrop" role="presentation" onClick={event=>{if(event.target===event.currentTarget)setHelp(false);}}>

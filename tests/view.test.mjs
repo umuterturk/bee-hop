@@ -154,6 +154,19 @@ test('collecting a flower plans a sparkle burst',()=>{
   assert.match(board,/scaleX/);
 });
 
+test('the meadow frames a card that holds the board and the boosters',()=>{
+  const css=readFileSync(new URL('../src/view/game.css',import.meta.url),'utf8');
+  const view=readFileSync(new URL('../src/view/Game.jsx',import.meta.url),'utf8');
+  assert.match(css,/assets\/bg-1\.webp/);
+  assert.doesNotMatch(css,/bg-1\.png|no-repeat fixed/);
+  assert.match(css,/\.hop-panel\{[^}]*linear-gradient/);
+  assert.match(css,/\.hop\{[^}]*background:transparent/);
+  const panel=view.slice(view.indexOf('className="hop-panel"'),view.indexOf('hop-sheet-backdrop'));
+  assert.match(panel,/hop-stage/);
+  assert.match(panel,/aria-label="Boosters"/);
+  assert.ok(panel.indexOf('hop-stage')<panel.lastIndexOf('hop-dock'));
+});
+
 test('the screenshot board (last flower, bee off-line) is still playing with zero hops',()=>{
   const board={width:8,height:7,bees:[32],pollen:[20],charges:{tunnel:0,seed:1,worker:0},hives:[],blocked:[]};
   assert.equal(legalJumps(board).length,0);
