@@ -4,8 +4,9 @@
  *
  * Undo is unlimited on levels 1–5 and three rewinds from level 6.
  * Waggle Dance is free through level 10, then two reveals.
- * Tunnel (16–20), Seed (21–25) and Worker (26–30) arrive one per wave.
- * Levels 31–35 offer Tunnel and Seed. Levels 36–40 offer all three. */
+ * Tunnel (16–20), Pollen Seed (21–25) and Worker (26–30) arrive one per wave.
+ * Pollen stays once it arrives, including the Worker wave.
+ * Levels 31–35 offer Tunnel and Pollen. Levels 36–40 offer all three. */
 import {hexDistance} from '../engine/abilities.js';
 
 export function inventoryFor(level){
@@ -14,7 +15,7 @@ export function inventoryFor(level){
     undo:id<=5?null:3,
     dance:id<=10?null:2,
     tunnel:(id>=16&&id<=20)||id>=31?1:0,
-    seed:(id>=21&&id<=25)||id>=31?1:0,
+    seed:id>=21?1:0,
     worker:(id>=26&&id<=30)||id>=36?1:0
   };
 }
@@ -33,9 +34,9 @@ export function lessonFor(level){
   if(level.id===1)return 'Tap the green hex.';
   if(level.id<=5)return 'Land on any green hex past the flower.';
   if(level.id===16)return 'Tunnel moves your bee. It does not take pollen.';
-  if(level.id===21)return 'Seed plants a flower. You have to collect it too.';
-  if(level.id===26)return 'The hive can call a second bee. You can also clear this alone.';
-  if(level.id===31)return 'Tunnel and Seed are both here if you want them.';
+  if(level.id===21)return 'Pollen plants a flower. You have to collect it too.';
+  if(level.id===26)return 'The hive can call a second bee. Pollen still plants a flower. You can also clear this alone.';
+  if(level.id===31)return 'Tunnel and Pollen are both here if you want them.';
   if(level.id===36)return 'Every tool is here. This field still clears without them.';
   if(level.boss)return 'Boss field. Choose the landing, not just the flower.';
   return null;

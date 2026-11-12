@@ -322,8 +322,8 @@ export default function Game(){
         disabled:locked||round.charges.tunnel<=0,
         onClick:()=>{poke();setFiltered(null);setMode(mode==='tunnel'?null:'tunnel');}
       })}
-      {grant.seed>0&&booster('seed','buttonSeed','Seed',{
-        count:round.charges.seed,aria:`Seed, ${round.charges.seed} left`,pressed:mode==='seed',
+      {grant.seed>0&&booster('seed','buttonSeed','Pollen',{
+        count:round.charges.seed,aria:`Pollen, ${round.charges.seed} left`,pressed:mode==='seed',
         disabled:locked||round.charges.seed<=0,
         onClick:()=>{poke();setFiltered(null);setMode(mode==='seed'?null:'seed');}
       })}
@@ -347,6 +347,7 @@ export default function Game(){
         <p className="hop-wave-label">{waveName}{level.boss?' · Boss':''}</p>
         <p>Every hop crosses one flower and lands on the hex just past it. A bright pulsing hex marks a landing.</p>
         <p>Undo rewinds one move. Restart, under the field, plays it again. Hint shows a landing that clears the field.</p>
+        <p>Pollen plants a flower you must collect. Tunnel moves the bee. Worker calls another bee from the hive.</p>
         <p>If no green hexes appear, the bee cannot hop from here. Use a booster or undo. Every field can still be cleared without boosters.</p>
         <button type="button" className="hop-menu-restart" disabled={locked||!lifeOffer.ok} onClick={()=>{setHelp(false);restart();}}>
           <Sprite name="buttonRestart" width={52}/>

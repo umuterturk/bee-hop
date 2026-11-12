@@ -17,7 +17,10 @@ test('tool grants follow the wave table and never show more than three tools',()
   assert.equal(inventoryFor(LEVELS[15]).seed,0);
   assert.equal(inventoryFor(LEVELS[20]).seed,1);
   assert.equal(inventoryFor(LEVELS[20]).tunnel,0);
+  assert.equal(inventoryFor(LEVELS[24]).seed,1);
   assert.equal(inventoryFor(LEVELS[25]).worker,1);
+  assert.equal(inventoryFor(LEVELS[25]).seed,1);
+  assert.equal(inventoryFor(LEVELS[29]).seed,1);
   assert.equal(inventoryFor(LEVELS[30]).tunnel,1);
   assert.equal(inventoryFor(LEVELS[30]).seed,1);
   assert.equal(inventoryFor(LEVELS[30]).worker,0);
