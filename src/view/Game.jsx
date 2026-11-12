@@ -106,7 +106,7 @@ export default function Game(){
   },[]);
   useEffect(()=>{
     const next=refillHearts(progress.hearts,now);
-    if(next.count===progress.hearts?.count&&next.nextAt===progress.hearts?.nextAt)return;
+    if(next.count===progress.hearts?.count&&next.nextAt===progress.hearts?.nextAt&&next.step===progress.hearts?.step)return;
     setProgress(prev=>({...prev,hearts:refillHearts(prev.hearts,Date.now())}));
   },[now,progress.hearts]);
   useEffect(()=>{saveProgress({...progress,resume:{levelId:level.id,round:roundRef.current}});},[progress,round,level.id]);

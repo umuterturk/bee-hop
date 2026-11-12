@@ -1,6 +1,14 @@
 export const HEART_CAP=3
-export const HEART_REFILL_MS=30*60*1000
+// First heart back in 5 minutes, the next in 15, the last in 20.
+export const HEART_REFILL_MS=[5*60*1000,15*60*1000,20*60*1000]
 
+function refillStep(step){
+  if(!Number.isInteger(step)||step<=0)return 0
+  return Math.min(HEART_REFILL_MS.length-1,step)
+}
+function refillDelay(step){
+  return HEART_REFILL_MS[refillStep(step)]
+}
 export function freshHearts(){
   return {count:HEART_CAP,nextAt:null}
 }
@@ -8,25 +16,30 @@ export function refillHearts(hearts,now){
   if(!hearts||!Number.isInteger(hearts.count))return freshHearts()
   let count=Math.min(HEART_CAP,Math.max(0,hearts.count))
   if(count>=HEART_CAP)return freshHearts()
-  let nextAt=Number.isInteger(hearts.nextAt)?hearts.nextAt:now+HEART_REFILL_MS
+  let step=refillStep(hearts.step)
+  let nextAt=Number.isInteger(hearts.nextAt)?hearts.nextAt:now+refillDelay(step)
+  const delay=refillDelay(step)
+  if(nextAt-now>delay)nextAt=now+delay
   while(count<HEART_CAP&&now>=nextAt){
     count+=1
-    nextAt+=HEART_REFILL_MS
+    step=refillStep(step+1)
+    if(count<HEART_CAP)nextAt+=refillDelay(step)
   }
   if(count>=HEART_CAP)return freshHearts()
-  return {count,nextAt}
+  return {count,nextAt,step}
 }
 export function grantHeart(hearts,now){
   const current=refillHearts(hearts,now)
   if(current.count>=HEART_CAP)return freshHearts()
   const count=current.count+1
   if(count>=HEART_CAP)return freshHearts()
-  return {count,nextAt:current.nextAt}
+  return {count,nextAt:current.nextAt,step:current.step??0}
 }
 export function spendHeart(hearts,now){
   const current=refillHearts(hearts,now)
   if(current.count<=0)return current
-  return {count:current.count-1,nextAt:current.nextAt??now+HEART_REFILL_MS}
+  if(current.nextAt==null)return {count:current.count-1,nextAt:now+HEART_REFILL_MS[0],step:0}
+  return {count:current.count-1,nextAt:current.nextAt,step:current.step??0}
 }
 /** Spend one life to replay a touched attempt. The replay stays playable even
  * when that life was the last one. An untouched field and a finished field are free.
