@@ -136,7 +136,12 @@ export default function Game(){
   }
   function patchSettings(partial){
     setProgress(prev=>({...prev,settings:{...prev.settings,...partial}}));
-    if('music' in partial&&audioReady.current)setMusic(partial.music);
+    if(!('music' in partial))return;
+    if(partial.music){
+      audioReady.current=true;
+      unlockAudio();
+    }
+    setMusic(partial.music);
   }
   function resetSelection(nextRound,bee=nextRound.bees[0]){
     setMode(null);setFiltered(null);setHint(null);setFlight(null);setSelectedBee(bee);
