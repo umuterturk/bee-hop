@@ -77,7 +77,7 @@ export function hexTile({
 }){
   let tile='hexHoney';
   if(pollen)tile='hexFlower';
-  if(landing)tile='hexLanding';
+  if(landing||(tool&&mode==='summon'))tile='hexLanding';
   let mark=null;
   if(settledBee)mark=worker?'beeWorker':'bee';
   else if(tool&&mode==='seed')mark='mango';

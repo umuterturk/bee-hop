@@ -132,6 +132,12 @@ button:focus-visible,a:focus-visible{outline:3px solid #8a5a12;outline-offset:3p
     drop-shadow(0 1.5px 0 #a56b12)
     drop-shadow(0 -1.5px 0 #a56b12);
 }
+.hop-cell.is-tool.is-summon{
+  z-index:4;
+  filter:drop-shadow(0 0 6px #f4ffc8) drop-shadow(0 0 14px #5af56ccc);
+  animation:hop-landing-pulse 1s ease-in-out infinite;
+}
+.hop-cell.is-tool.is-summon .hop-hex{animation:hop-landing-breathe 1s ease-in-out infinite}
 .hop-cell.is-selected .hop-ring{animation:hop-ring-spin 6s linear infinite}
 .hop-cell.is-landing:active,.hop-cell.is-tool:active,.hop-cell.is-flower:active{transform:scale(.9)}
 .hop-hex{position:absolute;left:50%;top:50%;z-index:0;width:86.6025403784%;height:115.4700538379%;pointer-events:none;transform:translate(-50%,-50%) rotate(90deg) scale(1.12);transform-origin:center}

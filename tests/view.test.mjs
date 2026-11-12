@@ -49,6 +49,18 @@ test('a selected bee with no hops points at the other bee',()=>{
   assert.doesNotMatch(note,/green hex|Plant a flower/i);
 });
 
+test('calling a worker highlights the hive with the green landing hex',()=>{
+  const quiet=hexTile({hive:true});
+  assert.equal(quiet.tile,'hexHoney');
+  assert.equal(quiet.mark,'crown');
+  const target=hexTile({hive:true,tool:true,mode:'summon'});
+  assert.equal(target.tile,'hexLanding');
+  assert.equal(target.mark,'crown');
+  const css=readFileSync(new URL('../src/view/game.css',import.meta.url),'utf8');
+  assert.match(css,/\.hop-cell\.is-tool\.is-summon\{[^}]*hop-landing-pulse/);
+  assert.match(css,/\.hop-cell\.is-tool\.is-summon \.hop-hex\{[^}]*hop-landing-breathe/);
+});
+
 test('honey cells stay honey, landings use the green hex, and flowers use a flower tile',()=>{
   const empty=hexTile({});
   assert.equal(empty.tile,'hexHoney');
