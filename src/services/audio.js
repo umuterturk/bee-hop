@@ -46,18 +46,143 @@ function audio(){
   if(ctx.state==='suspended')ctx.resume();
   return ctx;
 }
-function tone(freq,duration,type='triangle',gain=0.045,slide=0){
-  const ac=audio();
-  if(!ac)return;
+// Each board action has its own short voice. Noise sweeps are physical;
+// pentatonic tones match the meadow loop.
+export const actionCues={
+  jump:[
+    {at:0,kind:'noise',from:500,to:1400,duration:0.08,gain:0.055,q:0.8},
+    {at:0,kind:'tone',freq:700,slide:280,duration:0.07,gain:0.02,wave:'triangle'}
+  ],
+  pollen:[
+    {at:0,kind:'tone',freq:988,duration:0.11,gain:0.046,wave:'sine'},
+    {at:0.05,kind:'tone',freq:1319,duration:0.13,gain:0.03,wave:'sine'}
+  ],
+  tunnel:[
+    {at:0,kind:'noise',from:1400,to:180,duration:0.18,gain:0.055,q:0.7},
+    {at:0,kind:'tone',freq:300,slide:-140,duration:0.16,gain:0.018,wave:'sine'}
+  ],
+  seed:[
+    {at:0,kind:'noise',from:260,to:160,duration:0.05,gain:0.05,q:0.7,filter:'lowpass'},
+    {at:0.04,kind:'tone',freq:392,slide:200,duration:0.16,gain:0.04,wave:'sine'}
+  ],
+  summon:[
+    {at:0,kind:'noise',from:340,to:680,duration:0.07,gain:0.04,q:6},
+    {at:0.06,kind:'tone',freq:440,duration:0.1,gain:0.034,wave:'triangle'},
+    {at:0.14,kind:'tone',freq:659,duration:0.14,gain:0.03,wave:'sine'}
+  ],
+  undo:[
+    {at:0,kind:'noise',from:1200,to:280,duration:0.1,gain:0.05,q:0.8},
+    {at:0,kind:'tone',freq:520,slide:-180,duration:0.09,gain:0.018,wave:'triangle'}
+  ],
+  restart:[
+    {at:0,kind:'tone',freq:587,duration:0.1,gain:0.034,wave:'sine'},
+    {at:0.09,kind:'tone',freq:392,duration:0.16,gain:0.04,wave:'sine'}
+  ],
+  life:[
+    {at:0,kind:'tone',freq:196,slide:-70,duration:0.16,gain:0.04,wave:'sine'},
+    {at:0,kind:'noise',from:200,to:90,duration:0.08,gain:0.03,q:0.8,filter:'lowpass'}
+  ],
+  hint:[
+    {at:0,kind:'tone',freq:784,duration:0.09,gain:0.03,wave:'sine'},
+    {at:0.05,kind:'tone',freq:988,duration:0.09,gain:0.028,wave:'sine'},
+    {at:0.1,kind:'tone',freq:1175,duration:0.12,gain:0.024,wave:'sine'}
+  ],
+  hintnone:[
+    {at:0,kind:'tone',freq:440,duration:0.1,gain:0.03,wave:'sine'},
+    {at:0.08,kind:'tone',freq:330,duration:0.12,gain:0.026,wave:'sine'}
+  ],
+  hintunknown:[
+    {at:0,kind:'tone',freq:523,slide:50,duration:0.14,gain:0.03,wave:'sine'}
+  ],
+  win:[
+    {at:0,kind:'tone',freq:392,duration:0.22,gain:0.04,wave:'sine'},
+    {at:0.08,kind:'tone',freq:494,duration:0.22,gain:0.034,wave:'sine'},
+    {at:0.16,kind:'tone',freq:587,duration:0.24,gain:0.03,wave:'sine'},
+    {at:0.26,kind:'tone',freq:784,duration:0.3,gain:0.028,wave:'sine'}
+  ],
+  select:[{at:0,kind:'tone',freq:880,duration:0.035,gain:0.018,wave:'sine'}],
+  focus:[{at:0,kind:'tone',freq:1175,duration:0.04,gain:0.02,wave:'sine'}],
+  blur:[{at:0,kind:'tone',freq:520,duration:0.04,gain:0.014,wave:'sine'}],
+  deny:[{at:0,kind:'tone',freq:150,slide:-40,duration:0.07,gain:0.02,wave:'triangle'}],
+  'arm-tunnel':[
+    {at:0,kind:'noise',from:900,to:240,duration:0.09,gain:0.045,q:0.9},
+    {at:0,kind:'tone',freq:392,slide:-120,duration:0.09,gain:0.024,wave:'sine'}
+  ],
+  'arm-seed':[
+    {at:0,kind:'noise',from:420,to:220,duration:0.045,gain:0.045,q:0.7,filter:'lowpass'},
+    {at:0,kind:'tone',freq:494,duration:0.08,gain:0.03,wave:'sine'}
+  ],
+  'arm-summon':[
+    {at:0,kind:'noise',from:300,to:640,duration:0.06,gain:0.04,q:1.4},
+    {at:0,kind:'tone',freq:660,duration:0.09,gain:0.03,wave:'triangle'}
+  ],
+  disarm:[{at:0,kind:'tone',freq:480,slide:-140,duration:0.06,gain:0.018,wave:'sine'}],
+  heart:[
+    {at:0,kind:'tone',freq:523,duration:0.1,gain:0.032,wave:'sine'},
+    {at:0.08,kind:'tone',freq:659,duration:0.11,gain:0.03,wave:'sine'},
+    {at:0.16,kind:'tone',freq:784,duration:0.16,gain:0.028,wave:'sine'}
+  ]
+};
+
+function shape(param,when,peak,duration){
+  const attack=Math.min(0.018,Math.max(0.008,duration*0.22));
+  const end=when+Math.max(duration,attack+0.02);
+  param.setValueAtTime(0.0001,when);
+  param.exponentialRampToValueAtTime(Math.max(0.0002,peak),when+attack);
+  param.exponentialRampToValueAtTime(0.0001,end);
+  return end;
+}
+function playTone(ac,when,event){
   const osc=ac.createOscillator();
   const amp=ac.createGain();
-  osc.type=type;
-  osc.frequency.setValueAtTime(freq,ac.currentTime);
-  if(slide)osc.frequency.exponentialRampToValueAtTime(Math.max(40,freq+slide),ac.currentTime+duration);
-  amp.gain.setValueAtTime(gain,ac.currentTime);
-  amp.gain.exponentialRampToValueAtTime(0.0001,ac.currentTime+duration);
+  const duration=event.duration;
+  osc.type=event.wave||'sine';
+  osc.frequency.setValueAtTime(event.freq,when);
+  if(event.slide)osc.frequency.exponentialRampToValueAtTime(Math.max(40,event.freq+event.slide),when+duration);
+  const end=shape(amp.gain,when,event.gain,duration);
   osc.connect(amp);amp.connect(ac.destination);
-  osc.start();osc.stop(ac.currentTime+duration+0.02);
+  osc.start(when);osc.stop(end+0.02);
+  if(event.wave==='sine'&&event.freq>=500&&event.gain>=0.025){
+    const over=ac.createOscillator();
+    const overAmp=ac.createGain();
+    over.type='sine';
+    over.frequency.setValueAtTime(event.freq*2,when);
+    const overEnd=shape(overAmp.gain,when,event.gain*0.14,duration*0.7);
+    over.connect(overAmp);overAmp.connect(ac.destination);
+    over.start(when);over.stop(overEnd+0.02);
+  }
+}
+function playNoise(ac,when,event){
+  if(typeof ac.createBuffer!=='function'){
+    playTone(ac,when,{kind:'tone',freq:event.from,slide:(event.to||event.from)-event.from,duration:event.duration,gain:event.gain*0.6,wave:'triangle'});
+    return;
+  }
+  const duration=event.duration;
+  const length=Math.max(1,Math.ceil(ac.sampleRate*(duration+0.04)));
+  const buffer=ac.createBuffer(1,length,ac.sampleRate);
+  const data=buffer.getChannelData(0);
+  for(let i=0;i<data.length;i++)data[i]=Math.random()*2-1;
+  const src=ac.createBufferSource();
+  const filter=ac.createBiquadFilter();
+  const amp=ac.createGain();
+  src.buffer=buffer;
+  filter.type=event.filter||'bandpass';
+  filter.Q.value=event.q??4;
+  filter.frequency.setValueAtTime(Math.max(40,event.from),when);
+  if(event.to&&event.to!==event.from)filter.frequency.exponentialRampToValueAtTime(Math.max(40,event.to),when+duration);
+  const end=shape(amp.gain,when,event.gain,duration);
+  src.connect(filter);filter.connect(amp);amp.connect(ac.destination);
+  src.start(when);src.stop(end+0.03);
+}
+function playEvents(events){
+  const ac=audio();
+  if(!ac)return;
+  const now=ac.currentTime;
+  for(const event of events){
+    const when=now+(event.at||0);
+    if(event.kind==='noise')playNoise(ac,when,event);
+    else playTone(ac,when,event);
+  }
 }
 function drop(handle){
   if(!handle||handle.dropped)return;
@@ -207,13 +332,8 @@ function startPeace(ac){
 export function unlockAudio(){return audio();}
 export function playCue(kind,enabled){
   if(!enabled)return;
-  if(kind==='jump')tone(520,0.09,'triangle',0.04,240);
-  else if(kind==='pollen')tone(980,0.07,'sine',0.05);
-  else if(kind==='tunnel')tone(220,0.22,'sine',0.04,-80);
-  else if(kind==='seed')tone(640,0.1,'triangle',0.04);
-  else if(kind==='summon'){tone(440,0.16,'triangle',0.04);tone(660,0.18,'sine',0.03);}
-  else if(kind==='undo')tone(340,0.08,'sine',0.03,-80);
-  else if(kind==='win'){tone(523,0.28,'triangle',0.04);tone(659,0.32,'sine',0.03);tone(784,0.36,'sine',0.025);}
+  const events=actionCues[kind];
+  if(events)playEvents(events);
 }
 export function setMusic(on){
   if(!on){

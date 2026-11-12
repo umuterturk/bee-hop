@@ -176,13 +176,14 @@ export default function Game(){
     if(result.spendsLife)setProgress(prev=>({...prev,hearts:result.hearts}));
     openLevel(level,result);
     track('restart',{levelId:level.id,spentLife:result.spendsLife});
-    playCue('undo',progress.settings.sound);
+    playCue('restart',progress.settings.sound);
+    if(result.spendsLife)playCue('life',progress.settings.sound);
   }
   function play(action){
     const current=roundRef.current;
     if(locked||statusOf(toBoard(current))!=='playing')return;
     const next=commit(current,action);
-    if(next===current)return;
+    if(next===current){playCue('deny',progress.settings.sound);return;}
     roundRef.current=next;
     setRound(next);
     setHint(null);setFiltered(null);setMode(null);
@@ -198,7 +199,7 @@ export default function Game(){
     if(!acted.current){acted.current=true;track('first_action',{levelId:level.id,type:action.type});}
     track(action.type,{levelId:level.id});
     playCue(action.type==='jump'?'jump':action.type,progress.settings.sound);
-    if(next.pollen.length<current.pollen.length)playCue('pollen',progress.settings.sound);
+    if(picked&&next.pollen.length>0)playCue('pollen',progress.settings.sound);
     if(next.pollen.length===0)playCue('win',progress.settings.sound);
     buzz(next.pollen.length===0?28:12,progress.settings.haptics);
   }
@@ -229,6 +230,7 @@ export default function Game(){
       setFiltered(step?.type==='jump'?step.over:null);
       setMode(step?.type==='jump'||!step?null:step.type);
       track('hint',{levelId:level.id,outcome:'win',layer:hint.layer+1});
+      playCue('hint',progress.settings.sound);
       return;
     }
     setHint({outcome:'looking',steps:[],layer:0});
@@ -242,6 +244,7 @@ export default function Game(){
       setFiltered(step?.type==='jump'?step.over:null);
       setMode(step?.type==='jump'||!step?null:step.type);
       track('hint',{levelId:level.id,outcome:solved.outcome,layer:0});
+      playCue(solved.outcome==='win'?'hint':solved.outcome==='none'?'hintnone':'hintunknown',progress.settings.sound);
     },30);
   }
   function onCell(cell){
@@ -249,7 +252,10 @@ export default function Game(){
     if(locked)return;
     const current=roundRef.current;
     if(statusOf(toBoard(current))!=='playing')return;
-    if(current.bees.includes(cell)){setSelectedBee(cell);setFiltered(null);return;}
+    if(current.bees.includes(cell)){
+      if(cell!==beeRef.current)playCue('select',progress.settings.sound);
+      setSelectedBee(cell);setFiltered(null);return;
+    }
     const bee=current.bees.includes(beeRef.current)?beeRef.current:current.bees[0];
     const active=modeRef.current;
     if(active==='tunnel')return play({type:'tunnel',bee,to:cell});
@@ -258,7 +264,18 @@ export default function Game(){
     const moves=legalJumps(toBoard(current)).filter(move=>move.bee===bee);
     const landings=(filterRef.current==null?moves:moves.filter(move=>move.over===filterRef.current)).filter(move=>move.to===cell);
     if(landings.length===1)return play(landings[0]);
-    if(moves.some(move=>move.over===cell))setFiltered(filterRef.current===cell?null:cell);
+    if(moves.some(move=>move.over===cell)){
+      const next=filterRef.current===cell?null:cell;
+      playCue(next==null?'blur':'focus',progress.settings.sound);
+      setFiltered(next);
+    }
+  }
+  function arm(next){
+    poke();
+    setFiltered(null);
+    const off=mode===next;
+    setMode(off?null:next);
+    playCue(off?'disarm':`arm-${next}`,progress.settings.sound);
   }
   function booster(id,sprite,label,{count,disabled,pressed,onClick,aria}){
     return <div className={`hop-booster is-${id} ${disabled?'is-unavailable':''} ${callout===id?'is-callout':''}`}>
@@ -321,17 +338,17 @@ export default function Game(){
       {grant.tunnel>0&&booster('tunnel','buttonTunnel','Tunnel',{
         count:round.charges.tunnel,aria:`Tunnel, ${round.charges.tunnel} left`,pressed:mode==='tunnel',
         disabled:locked||round.charges.tunnel<=0,
-        onClick:()=>{poke();setFiltered(null);setMode(mode==='tunnel'?null:'tunnel');}
+        onClick:()=>arm('tunnel')
       })}
       {grant.seed>0&&booster('seed','buttonSeed','Pollen',{
         count:round.charges.seed,aria:`Pollen, ${round.charges.seed} left`,pressed:mode==='seed',
         disabled:locked||round.charges.seed<=0,
-        onClick:()=>{poke();setFiltered(null);setMode(mode==='seed'?null:'seed');}
+        onClick:()=>arm('seed')
       })}
       {grant.worker>0&&booster('summon','buttonWorker','Worker',{
         count:round.charges.worker,aria:`Worker, ${round.charges.worker} left`,pressed:mode==='summon',
         disabled:locked||round.charges.worker<=0,
-        onClick:()=>{poke();setFiltered(null);setMode(mode==='summon'?null:'summon');}
+        onClick:()=>arm('summon')
       })}
       {booster('hint','buttonHint','Hint',{
         count:round.danceLeft,
@@ -368,7 +385,7 @@ export default function Game(){
           <label><input type="checkbox" checked={progress.settings.music} onChange={event=>patchSettings({music:event.target.checked})}/> Music</label>
           <label><input type="checkbox" checked={progress.settings.haptics} onChange={event=>patchSettings({haptics:event.target.checked})}/> Haptics</label>
           <label><input type="checkbox" checked={progress.settings.reduceMotion} onChange={event=>patchSettings({reduceMotion:event.target.checked})}/> Reduce motion</label>
-          <button type="button" className="hop-option" disabled={hearts.count>=HEART_CAP} onClick={()=>setProgress(prev=>({...prev,hearts:grantHeart(prev.hearts,Date.now())}))}>New life</button>
+          <button type="button" className="hop-option" disabled={hearts.count>=HEART_CAP} onClick={()=>{playCue('heart',progress.settings.sound);setProgress(prev=>({...prev,hearts:grantHeart(prev.hearts,Date.now())}));}}>New life</button>
         </div>
       </section>
     </div>}

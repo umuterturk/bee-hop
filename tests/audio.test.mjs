@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {peaceBed,peaceScore,setMusic} from '../src/services/audio.js';
+import {actionCues,peaceBed,peaceScore,playCue,setMusic} from '../src/services/audio.js';
 
 const SCALE=new Set([196,220,247,294,330,392]);
 
@@ -40,6 +40,35 @@ test('the bed changes chord every two bars and pulses on the downbeat',()=>{
   assert.deepEqual(peaceBed(-4),peaceBed(28));
 });
 
+test('every board action has its own short voice',()=>{
+  const actions=['jump','pollen','tunnel','seed','summon','undo','restart','life','hint','hintnone','hintunknown','win','select','focus','blur','deny','arm-tunnel','arm-seed','arm-summon','disarm','heart'];
+  assert.deepEqual(Object.keys(actionCues).sort(),actions.sort());
+  const seen=new Set();
+  for(const [name,events] of Object.entries(actionCues)){
+    assert.ok(events.length>0,name);
+    const key=JSON.stringify(events);
+    assert.equal(seen.has(key),false,name);
+    seen.add(key);
+    for(const event of events){
+      assert.ok(event.duration>0&&event.duration<=0.32,name);
+      assert.ok(event.gain>0&&event.gain<=0.06,name);
+      assert.ok((event.at||0)>=0,name);
+    }
+  }
+  const sweep=name=>actionCues[name].find(event=>event.kind==='noise');
+  assert.ok(sweep('jump').to>sweep('jump').from);
+  assert.ok(sweep('undo').to<sweep('undo').from);
+  assert.ok(sweep('tunnel').to<sweep('tunnel').from);
+  const tones=name=>actionCues[name].filter(event=>event.kind==='tone').map(event=>event.freq);
+  assert.ok(tones('pollen').at(-1)>tones('pollen')[0]);
+  assert.ok(tones('hint').at(-1)>tones('hint')[0]);
+  assert.ok(tones('hintnone').at(-1)<tones('hintnone')[0]);
+  assert.ok(tones('win').at(-1)>tones('win')[0]);
+  assert.ok(tones('restart').at(-1)<tones('restart')[0]);
+  assert.ok(tones('life')[0]<tones('select')[0]);
+  assert.deepEqual(tones('win'),[392,494,587,784]);
+});
+
 test('music stays silent when the platform has no audio context',()=>{
   const previous=globalThis.AudioContext;
   const webkit=globalThis.webkitAudioContext;
@@ -49,6 +78,9 @@ test('music stays silent when the platform has no audio context',()=>{
     assert.doesNotThrow(()=>setMusic(false));
     assert.doesNotThrow(()=>setMusic(true));
     assert.doesNotThrow(()=>setMusic(false));
+    assert.doesNotThrow(()=>playCue('jump',true));
+    assert.doesNotThrow(()=>playCue('win',false));
+    assert.doesNotThrow(()=>playCue('missing',true));
   }finally{
     if(previous)globalThis.AudioContext=previous;
     if(webkit)globalThis.webkitAudioContext=webkit;
