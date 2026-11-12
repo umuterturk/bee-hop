@@ -187,17 +187,24 @@ test('the honeycomb fills the gameplay width so every cell is as large as the fi
   assert.match(view,/style=\{\{'--board-aspect':boardFrame\(level\.width,level\.height\)\.aspect\}\}/);
 });
 
-test('the meadow frames a card that holds the board and the boosters',()=>{
+test('the meadow shows around the board, with icon-only boosters outside it',()=>{
   const css=readFileSync(new URL('../src/view/game.css',import.meta.url),'utf8');
   const view=readFileSync(new URL('../src/view/Game.jsx',import.meta.url),'utf8');
   assert.match(css,/assets\/bg-1\.webp/);
   assert.doesNotMatch(css,/bg-1\.png|no-repeat fixed/);
-  assert.match(css,/\.hop-panel\{[^}]*linear-gradient/);
+  assert.doesNotMatch(css,/\.hop-panel\{/);
+  assert.doesNotMatch(view,/hop-panel|hop-tool-label/);
   assert.match(css,/\.hop\{[^}]*background:transparent/);
-  const panel=view.slice(view.indexOf('className="hop-panel"'),view.indexOf('hop-sheet-backdrop'));
-  assert.match(panel,/hop-stage/);
-  assert.match(panel,/aria-label="Boosters"/);
-  assert.ok(panel.indexOf('hop-stage')<panel.lastIndexOf('hop-dock'));
+  const play=view.slice(view.indexOf('className={`hop '),view.indexOf('hop-sheet-backdrop'));
+  const stage=play.indexOf('hop-stage');
+  const dock=play.indexOf('aria-label="Boosters"');
+  const stageClose=play.indexOf('</div>',stage);
+  assert.ok(stage!==-1&&dock!==-1&&stageClose!==-1&&stage<stageClose&&stageClose<dock);
+  assert.match(play,/booster\('seed','buttonSeed','Pollen'/);
+  const round=css.match(/\.hop-dock \.hop-sprite-button\{[^}]*\}/);
+  assert.ok(round);
+  assert.match(round[0],/border-radius:\s*50%/);
+  assert.match(css,/\.hop-booster\.is-unavailable\{[^}]*opacity/);
 });
 
 test('the screenshot board (last flower, bee off-line) is still playing with zero hops',()=>{

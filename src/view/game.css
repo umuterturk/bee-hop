@@ -1,4 +1,4 @@
-:root{color-scheme:light;--ink:#234033;--honey:#e39b12;--leaf:#1f8f72;--cream:#fff8ea;--hud:52px;--dock:74px;--go:#2f9a32;--meadow:#6eaf45}
+:root{color-scheme:light;--ink:#234033;--honey:#e39b12;--leaf:#1f8f72;--cream:#fff8ea;--hud:40px;--dock:52px;--go:#2f9a32;--meadow:#6eaf45}
 *{box-sizing:border-box}
 html,body,#root{margin:0;height:100%;overflow:hidden}
 html,body{
@@ -11,102 +11,90 @@ button:disabled{cursor:default}
 button:focus-visible,a:focus-visible{outline:3px solid #8a5a12;outline-offset:3px}
 
 .hop{
-  /* As wide as the screen until a full-width honeycomb would leave the viewport. */
-  --fit-chrome:292px;
-  --fit-gutter:72px;
-  --board-max:calc((100dvh - var(--fit-chrome)) * var(--board-aspect, 0.8));
+  /* As wide as the screen until a full-width honeycomb would leave the viewport.
+     Side inset stays small so the board can use about 96% of a phone. */
+  --fit-chrome:168px;
+  --fit-gutter:16px;
+  --board-max:calc((100dvh - var(--fit-chrome)) * var(--board-aspect, 1.2));
   width:min(100%, calc(var(--board-max) + var(--fit-gutter)));
   height:100dvh;max-height:100dvh;margin:0 auto;
-  display:flex;flex-direction:column;justify-content:center;
+  display:flex;flex-direction:column;justify-content:flex-start;gap:6px;
   overflow:hidden;background:transparent;
   padding:
-    max(28px,calc(env(safe-area-inset-top) + 10px))
-    max(14px,env(safe-area-inset-right))
-    max(22px,calc(env(safe-area-inset-bottom) + 8px))
-    max(14px,env(safe-area-inset-left));
+    max(6px,env(safe-area-inset-top))
+    max(8px,env(safe-area-inset-right))
+    max(6px,env(safe-area-inset-bottom))
+    max(8px,env(safe-area-inset-left));
 }
-.hop-panel{
-  flex:0 1 auto;max-height:100%;min-height:0;display:flex;flex-direction:column;gap:6px;
-  overflow:hidden;padding:8px 8px 6px;border-radius:26px;
-  background:
-    radial-gradient(ellipse 90% 28% at 50% -6%,#fff3c4,transparent 70%),
-    linear-gradient(#fffaf0,#f6edd6 58%,#f3e4c4);
-  border:3px solid #fff6d0;
-  box-shadow:0 0 0 2px #d7a23a,0 14px 28px #1c3d2280;
-}
-.hop.is-boss .hop-panel{background:
-  radial-gradient(ellipse 90% 28% at 50% -6%,#f6d9ff,transparent 70%),
-  linear-gradient(#f8f1e6,#efe4f6 58%,#efe6d4)}
 
-/* —— Compact Candy Crush–style HUD —— */
+/* —— Single compact top bar —— */
 .hop-hud{
   flex:0 0 auto;
-  display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:8px;
-  min-height:var(--hud);animation:hop-drop .45s cubic-bezier(.2,.9,.2,1) both;
+  display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:6px;
+  min-height:var(--hud);padding:2px 6px 2px 4px;border-radius:14px;
+  background:#fff8ead4;box-shadow:0 2px 8px #16382c33;
+  animation:hop-drop .45s cubic-bezier(.2,.9,.2,1) both;
 }
-.hop.is-boss .hop-hud{padding-top:8px}
+.hop.is-boss .hop-hud{margin-top:6px}
 .hop-hud-level{display:flex;align-items:center;gap:4px}
 .hop-level-badge{
-  position:relative;min-width:44px;padding:1px 6px 2px;border-radius:12px;
+  position:relative;min-width:38px;padding:1px 5px 2px;border-radius:10px;
   background:#f6d98a;border:2px solid #e0b34d;display:flex;flex-direction:column;align-items:center;
   box-shadow:0 2px 0 #c4923a55;
 }
-.hop-boss-crown{position:absolute;top:-11px;left:50%;transform:translateX(-50%);width:16px}
+.hop-boss-crown{position:absolute;top:-10px;left:50%;transform:translateX(-50%);width:14px}
 .hop.is-boss .hop-level-badge{background:#f3c14a;border-color:#c4842a}
-.hop-level-badge span{font-size:8px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#7a5a22}
-.hop-level-badge strong{font-family:"Lilita One",system-ui,sans-serif;font-size:16px;line-height:1;color:#6d4a16}
+.hop-level-badge span{font-size:8px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#7a5a22}
+.hop-level-badge strong{font-family:"Lilita One",system-ui,sans-serif;font-size:15px;line-height:1;color:#6d4a16}
 .hop-objective{
-  justify-self:center;display:flex;align-items:center;gap:8px;
-  min-height:52px;padding:4px 16px 4px 8px;border-radius:999px;
-  background:#fff6d4;border:2px solid #e0b34d;box-shadow:0 3px 0 #c4923a55;
+  justify-self:center;display:flex;align-items:center;gap:4px;
+  min-height:32px;padding:0 4px;border-radius:999px;background:transparent;
   animation:hop-drop .5s .05s cubic-bezier(.2,.9,.2,1) both;
 }
 .hop-objective.is-pulse{animation:hop-jar-bounce .45s ease}
-.hop-objective-art{display:grid;place-items:center;width:40px;height:40px;flex:0 0 auto}
-.hop-objective p{margin:0;display:flex;align-items:baseline;gap:6px}
-.hop-objective strong{font-family:"Lilita One",system-ui,sans-serif;font-size:36px;font-variant-numeric:tabular-nums;line-height:1;color:#8a5a12}
-.hop-objective span{font-weight:800;font-size:12px;color:#8d7344}
-.hop-hud-right{display:flex;align-items:center;gap:6px;justify-self:end}
+.hop-objective-art{display:grid;place-items:center;width:26px;height:26px;flex:0 0 auto}
+.hop-objective p{margin:0;display:flex;align-items:baseline;gap:4px}
+.hop-objective strong{font-family:"Lilita One",system-ui,sans-serif;font-size:22px;font-variant-numeric:tabular-nums;line-height:1;color:#8a5a12}
+.hop-objective span{font-weight:800;font-size:11px;color:#8d7344}
+.hop-hud-right{display:flex;align-items:center;gap:4px;justify-self:end}
 .hop-hearts{display:flex;align-items:center}
-.hop-heart-row{display:flex;gap:2px;align-items:center}
-.hop-heart-slot{position:relative;display:grid;place-items:center;width:24px;height:26px}
+.hop-heart-row{display:flex;gap:1px;align-items:center}
+.hop-heart-slot{position:relative;display:grid;place-items:center;width:18px;height:20px}
 .hop-heart-wait{
   position:absolute;left:50%;bottom:-1px;transform:translateX(-50%);
   padding:0 3px;border-radius:6px;background:#fff4f0;border:1px solid #e8a0a8;
   font-size:8px;font-weight:800;font-variant-numeric:tabular-nums;color:#a33b4a;line-height:1.2;white-space:nowrap;
 }
-.hop-help-button{width:40px}
+.hop-help-button{width:32px}
 .hop.is-tired .hop-stage,.hop.is-tired .hop-dock{opacity:.55}
 
-/* —— Board stage (biggest region) —— */
+/* —— Board, almost the full screen width —— */
 .hop-stage{
-  flex:0 1 auto;min-height:0;width:100%;
-  display:grid;justify-items:stretch;align-items:safe center;overflow:hidden;
-  border-radius:22px;padding:7px;
-  background:#4a2a10;
-  border:4px solid #3a210c;
-  box-shadow:inset 0 2px 0 #c4894a88,inset 0 -3px 0 #2a1608,0 4px 0 #3d2410aa;
+  flex:1 1 auto;min-height:0;width:100%;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;
+  overflow:hidden;
+  padding:0;border:0;border-radius:0;background:transparent;
   animation:hop-pop-in .5s .08s cubic-bezier(.2,.9,.2,1) backwards;
 }
-.hop-stage.is-no-hops{box-shadow:inset 0 0 0 3px #f0c14d,inset 0 2px 0 #c4894a88,0 4px 0 #3d2410aa}
 .hop-board{
   position:relative;margin:0 auto;touch-action:manipulation;
   aspect-ratio:var(--board-aspect,1);
   width:100%;height:auto;max-width:100%;
-  border-radius:16px;
+  border-radius:18px;
   background-color:#e2a44a;
   background-image:
     radial-gradient(ellipse at 50% 0%,#fff3c8d0,transparent 56%),
     radial-gradient(ellipse at 50% 115%,#a86422c4,transparent 48%),
-    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='49' height='28' viewBox='0 0 49 28'><path d='M1.2 14 8.2 1.8h14L29.2 14 22.2 26.2H8.2zM25.2 14 32.2 1.8h14L53.2 14 46.2 26.2H32.2z' fill='none' stroke='%23fff6dc' stroke-opacity='.34' stroke-width='1.15'/></svg>");
-  background-size:auto,auto,49px 28px;
-  box-shadow:inset 0 12px 18px #fff7,inset 0 -18px 24px #7a4516aa,inset 0 0 0 1px #f6d48a66;
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='28' height='48' viewBox='0 0 28 48.497'><path d='M14 0 28 8.083v16.166L14 32.332 0 24.249V8.083zM0 24.249 14 32.332v16.165L0 56.58l-14-8.083V32.332zM28 24.249l14 8.083v16.165l-14 8.083-14-8.083V32.332z' fill='none' stroke='%23fff6dc' stroke-opacity='.34' stroke-width='1.15'/></svg>");
+  background-size:auto,auto,28px 48.497px;
+  box-shadow:0 10px 24px #16382c55,0 0 0 1px #fff3c488,inset 0 10px 16px #fff6,inset 0 -16px 22px #7a4516aa;
 }
+.hop-stage.is-no-hops .hop-board{box-shadow:0 0 0 3px #f0c14d,0 10px 24px #16382c55}
 
 .hop-cell{
   position:absolute;width:var(--hex-w);height:var(--hex-h);padding:0;border:0;
   display:grid;place-items:center;background:transparent;
-  clip-path:polygon(25% 0,75% 0,100% 50%,75% 100%,25% 100%,0 50%);
+  clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%);
   color:transparent;
 }
 .hop-cell:disabled{opacity:1}
@@ -140,7 +128,7 @@ button:focus-visible,a:focus-visible{outline:3px solid #8a5a12;outline-offset:3p
 .hop-cell.is-tool.is-summon .hop-hex{animation:hop-landing-breathe 1s ease-in-out infinite}
 .hop-cell.is-selected .hop-ring{animation:hop-ring-spin 6s linear infinite}
 .hop-cell.is-landing:active,.hop-cell.is-tool:active,.hop-cell.is-flower:active{transform:scale(.9)}
-.hop-hex{position:absolute;left:50%;top:50%;z-index:0;width:86.6025403784%;height:115.4700538379%;pointer-events:none;transform:translate(-50%,-50%) rotate(90deg) scale(1.12);transform-origin:center}
+.hop-hex{position:absolute;left:50%;top:50%;z-index:0;width:112%;height:auto;pointer-events:none;transform:translate(-50%,-50%);transform-origin:center}
 .hop-mark{position:relative;z-index:2;width:72%;pointer-events:none}
 .hop-mark.is-bee,.hop-mark.is-beeWorker{
   z-index:5;width:86%;
@@ -184,38 +172,40 @@ button:focus-visible,a:focus-visible{outline:3px solid #8a5a12;outline-offset:3p
 /* —— Footer note + tool dock —— */
 .hop-note{
   flex:0 0 auto;
-  margin:0 auto;min-height:1.3em;max-width:24em;text-align:center;
-  font-size:14px;font-weight:800;line-height:1.3;color:#3e5344;
+  margin:0 auto;min-height:1.15em;max-width:28em;text-align:center;
+  font-size:13px;font-weight:800;line-height:1.25;color:#fffaf0;
+  text-shadow:0 1px 2px #16382c;
 }
-.hop.is-no-hops .hop-note{color:#8a4a16}
+.hop.is-no-hops .hop-note{color:#ffe7a8}
 .hop-dock{
   flex:0 0 auto;
-  display:flex;flex-wrap:nowrap;justify-content:center;align-items:flex-end;gap:4px;
-  min-height:var(--dock);padding-bottom:2px;
+  display:flex;flex-wrap:nowrap;justify-content:center;align-items:center;
+  gap:clamp(6px,1.8vw,10px);
+  min-height:var(--dock);padding:2px 0;
   animation:hop-rise .45s .1s cubic-bezier(.2,.9,.2,1) both;
 }
-.hop-booster{display:flex;flex-direction:column;align-items:center;gap:2px;flex:0 0 auto;width:clamp(52px,14vw,68px)}
-.hop-tool-label{
-  font-size:10px;font-weight:800;letter-spacing:.02em;line-height:1;color:#6d5a32;text-transform:uppercase;white-space:nowrap;
-}
-.hop-booster.is-unavailable .hop-tool-label{color:#b3a48c}
+.hop-booster{position:relative;display:flex;align-items:center;justify-content:center;flex:0 0 auto;width:clamp(42px,12vw,52px)}
+.hop-booster.is-unavailable{opacity:.4}
 .hop-booster.is-unavailable .hop-count{background:#efe6d4;color:#9a8b72;border-color:#d9cbae}
 .hop-booster.is-callout{animation:hop-callout 1s ease-in-out infinite}
-.hop-booster.is-callout .hop-sprite-button{filter:drop-shadow(0 0 8px #7adf32cc) drop-shadow(0 3px 0 #00000022)}
+.hop-booster.is-callout .hop-sprite-button{filter:drop-shadow(0 0 8px #7adf32cc)}
 .hop-sprite-button{
   position:relative;width:100%;flex:0 0 auto;border:0;padding:0;
-  background-color:transparent;filter:drop-shadow(0 3px 0 #00000022);
+  background-color:transparent;filter:drop-shadow(0 2px 0 #00000022);
   transition:transform .12s ease;
 }
-.hop-sprite-button.hop-help-button{width:40px;filter:none}
+.hop-dock .hop-sprite-button{width:100%;height:auto;aspect-ratio:1;border-radius:50%;overflow:hidden}
+.hop-sprite-button.hop-help-button{width:32px;filter:none}
 .hop-sprite-button:disabled{opacity:.42;filter:grayscale(.35)}
-.hop-sprite-button[aria-pressed="true"]{transform:translateY(3px)}
-.hop-sprite-button:active:not(:disabled){transform:translateY(2px)}
+.hop-dock .hop-sprite-button:disabled{opacity:1;filter:none}
+.hop-sprite-button[aria-pressed="true"]{transform:translateY(2px)}
+.hop-sprite-button:active:not(:disabled){transform:translateY(1px) scale(.96)}
 .hop-count{
-  position:absolute;right:-2px;bottom:0;display:grid;place-items:center;
-  min-width:1.4em;height:1.4em;padding:0 4px;border-radius:999px;
-  background:#fff8ea;border:2px solid #c4923a;color:#6d4a16;
-  font-size:12px;font-weight:800;font-variant-numeric:tabular-nums;
+  position:absolute;top:-3px;right:-3px;z-index:2;pointer-events:none;
+  display:grid;place-items:center;
+  min-width:16px;height:16px;padding:0 3px;border-radius:999px;
+  background:#fff8ea;border:1.5px solid #c4923a;color:#6d4a16;
+  font-size:10px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1;
 }
 
 /* —— Help / settings sheet —— */
@@ -306,7 +296,7 @@ button:focus-visible,a:focus-visible{outline:3px solid #8a5a12;outline-offset:3p
   0%,100%{filter:drop-shadow(0 0 5px #eaffb8) drop-shadow(0 0 12px #46e85ccc)}
   50%{filter:drop-shadow(0 0 10px #fff) drop-shadow(0 0 22px #d6ff6a)}
 }
-@keyframes hop-landing-breathe{0%,100%{transform:translate(-50%,-50%) rotate(90deg) scale(1.12)}50%{transform:translate(-50%,-50%) rotate(90deg) scale(1.24)}}
+@keyframes hop-landing-breathe{0%,100%{transform:translate(-50%,-50%) scale(1)}50%{transform:translate(-50%,-50%) scale(1.1)}}
 @keyframes hop-pop{from{transform:scale(.4)}to{transform:scale(1)}}
 @keyframes hop-pop-in{from{opacity:0;transform:scale(.86)}to{opacity:1;transform:scale(1)}}
 @keyframes hop-drop{from{opacity:0;transform:translateY(-12px)}to{opacity:1;transform:translateY(0)}}
@@ -321,34 +311,30 @@ button:focus-visible,a:focus-visible{outline:3px solid #8a5a12;outline-offset:3p
 
 @media(max-height:520px){
   .hop{
-    --fit-chrome:208px;
-    --fit-gutter:48px;
-    padding:8px 10px;
+    --fit-chrome:128px;
+    --fit-gutter:16px;
+    padding:6px 8px;
+    gap:2px;
   }
-  .hop-panel{gap:4px;padding:4px 6px}
-  .hop-hud{min-height:36px;gap:4px}
-  .hop-objective{min-height:36px;padding:2px 8px 2px 4px;gap:4px}
-  .hop-objective strong{font-size:22px}
-  .hop-objective-art{width:28px;height:28px}
-  .hop-level-badge{min-width:36px;padding:0 4px}
-  .hop-level-badge strong{font-size:14px}
-  .hop-heart-slot{width:18px;height:20px}
-  .hop-help-button,.hop-sprite-button.hop-help-button{width:32px}
-  .hop-stage{padding:4px}
+  .hop-hud{min-height:32px;gap:4px}
+  .hop-objective{min-height:28px}
+  .hop-objective strong{font-size:18px}
+  .hop-objective-art{width:22px;height:22px}
+  .hop-level-badge{min-width:32px;padding:0 4px}
+  .hop-level-badge strong{font-size:13px}
+  .hop-heart-slot{width:16px;height:18px}
+  .hop-help-button,.hop-sprite-button.hop-help-button{width:28px}
   .hop-note{font-size:12px}
-  .hop-dock{min-height:52px;gap:2px}
-  .hop-booster{width:46px}
+  .hop-dock{min-height:42px;gap:6px}
+  .hop-booster{width:40px}
 }
 @media(max-width:380px){
   .hop{
-    padding-left:max(10px,env(safe-area-inset-left));
-    padding-right:max(10px,env(safe-area-inset-right));
+    padding-left:max(6px,env(safe-area-inset-left));
+    padding-right:max(6px,env(safe-area-inset-right));
   }
-  .hop-panel{gap:4px;padding:6px 6px 4px;border-radius:20px}
-  .hop-booster{width:clamp(46px,13vw,58px)}
-  .hop-stage{padding:6px;border-radius:18px}
-  .hop-objective strong{font-size:30px}
-  .hop-tool-label{font-size:9px}
+  .hop-booster{width:clamp(40px,11vw,46px)}
+  .hop-objective strong{font-size:20px}
 }
 #bee-hop-build{
   right:10px;left:auto;bottom:max(2px,env(safe-area-inset-bottom));
