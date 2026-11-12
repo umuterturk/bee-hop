@@ -4,7 +4,7 @@ import {Sprite,frameUrl,peekFrame} from './Sprite.jsx';
 import {collectBurst,hexTile} from './presentation.js';
 import {spriteStyle} from './sprites.js';
 
-function metricsFor(width,height){
+export function metricsFor(width,height){
   const boardWidth=width+.5;
   const boardHeight=1+(height-1)*.75;
   return {boardWidth,boardHeight,aspect:boardWidth/(boardHeight*2/Math.sqrt(3))};

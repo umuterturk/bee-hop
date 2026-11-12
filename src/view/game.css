@@ -11,8 +11,12 @@ button:disabled{cursor:default}
 button:focus-visible,a:focus-visible{outline:3px solid #8a5a12;outline-offset:3px}
 
 .hop{
-  --play-reserve:268px;
-  height:100dvh;max-height:100dvh;max-width:520px;margin:0 auto;
+  /* As wide as the screen until a full-width honeycomb would leave the viewport. */
+  --fit-chrome:292px;
+  --fit-gutter:72px;
+  --board-max:calc((100dvh - var(--fit-chrome)) * var(--board-aspect, 1.2));
+  width:min(100%, calc(var(--board-max) + var(--fit-gutter)));
+  height:100dvh;max-height:100dvh;margin:0 auto;
   display:flex;flex-direction:column;justify-content:center;
   overflow:hidden;background:transparent;
   padding:
@@ -76,20 +80,19 @@ button:focus-visible,a:focus-visible{outline:3px solid #8a5a12;outline-offset:3p
 
 /* —— Board stage (biggest region) —— */
 .hop-stage{
-  flex:0 1 auto;min-height:0;display:grid;place-items:center;overflow:hidden;
+  flex:0 1 auto;min-height:0;width:100%;
+  display:grid;justify-items:stretch;align-items:safe center;overflow:hidden;
   border-radius:22px;padding:7px;
   background:#4a2a10;
   border:4px solid #3a210c;
   box-shadow:inset 0 2px 0 #c4894a88,inset 0 -3px 0 #2a1608,0 4px 0 #3d2410aa;
   animation:hop-pop-in .5s .08s cubic-bezier(.2,.9,.2,1) backwards;
-  container-type:inline-size;
 }
 .hop-stage.is-no-hops{box-shadow:inset 0 0 0 3px #f0c14d,inset 0 2px 0 #c4894a88,0 4px 0 #3d2410aa}
 .hop-board{
   position:relative;margin:0 auto;touch-action:manipulation;
   aspect-ratio:var(--board-aspect,1);
-  width:min(100cqw,calc((100dvh - var(--play-reserve)) * var(--board-aspect,1)));
-  height:auto;max-height:calc(100dvh - var(--play-reserve));max-width:100%;
+  width:100%;height:auto;max-width:100%;
   border-radius:16px;
   background-color:#e2a44a;
   background-image:
@@ -310,6 +313,26 @@ button:focus-visible,a:focus-visible{outline:3px solid #8a5a12;outline-offset:3p
 @keyframes hop-sparkle{from{transform:scale(.85) rotate(-8deg);opacity:.7}to{transform:scale(1.1) rotate(8deg);opacity:1}}
 .hop-cell.is-new .hop-mark{animation:hop-pop .35s ease-out}
 
+@media(max-height:520px){
+  .hop{
+    --fit-chrome:208px;
+    --fit-gutter:48px;
+    padding:8px 10px;
+  }
+  .hop-panel{gap:4px;padding:4px 6px}
+  .hop-hud{min-height:36px;gap:4px}
+  .hop-objective{min-height:36px;padding:2px 8px 2px 4px;gap:4px}
+  .hop-objective strong{font-size:22px}
+  .hop-objective-art{width:28px;height:28px}
+  .hop-level-badge{min-width:36px;padding:0 4px}
+  .hop-level-badge strong{font-size:14px}
+  .hop-heart-slot{width:18px;height:20px}
+  .hop-help-button,.hop-sprite-button.hop-help-button{width:32px}
+  .hop-stage{padding:4px}
+  .hop-note{font-size:12px}
+  .hop-dock{min-height:52px;gap:2px}
+  .hop-booster{width:46px}
+}
 @media(max-width:380px){
   .hop{
     padding-left:max(10px,env(safe-area-inset-left));

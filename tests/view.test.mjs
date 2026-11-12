@@ -154,6 +154,27 @@ test('collecting a flower plans a sparkle burst',()=>{
   assert.match(board,/scaleX/);
 });
 
+test('the honeycomb fills the gameplay width so every cell is as large as the field allows',()=>{
+  const css=readFileSync(new URL('../src/view/game.css',import.meta.url),'utf8');
+  const view=readFileSync(new URL('../src/view/Game.jsx',import.meta.url),'utf8');
+  const hop=css.match(/\.hop\{[^}]*\}/);
+  const stage=css.match(/\.hop-stage\{[^}]*\}/);
+  const board=css.match(/\.hop-board\{[^}]*\}/);
+  assert.ok(hop);
+  assert.ok(stage);
+  assert.ok(board);
+  assert.match(hop[0],/--board-max:calc\(\(100dvh - var\(--fit-chrome\)\) \* var\(--board-aspect/);
+  assert.match(hop[0],/width:min\(100%, calc\(var\(--board-max\) \+ var\(--fit-gutter\)\)\)/);
+  assert.doesNotMatch(hop[0],/max-width:\s*520px/);
+  assert.match(stage[0],/width:\s*100%/);
+  assert.match(stage[0],/overflow:\s*hidden/);
+  assert.match(board[0],/width:\s*100%/);
+  assert.match(board[0],/aspect-ratio:\s*var\(--board-aspect/);
+  assert.doesNotMatch(board[0],/100cqw|play-reserve|max-height/);
+  assert.doesNotMatch(css,/--play-reserve/);
+  assert.match(view,/style=\{\{'--board-aspect':metricsFor\(level\.width,level\.height\)\.aspect\}\}/);
+});
+
 test('the meadow frames a card that holds the board and the boosters',()=>{
   const css=readFileSync(new URL('../src/view/game.css',import.meta.url),'utf8');
   const view=readFileSync(new URL('../src/view/Game.jsx',import.meta.url),'utf8');
