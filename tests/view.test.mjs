@@ -61,6 +61,36 @@ test('calling a worker highlights the hive with the green landing hex',()=>{
   assert.match(css,/\.hop-cell\.is-tool\.is-summon \.hop-hex\{[^}]*hop-landing-breathe/);
 });
 
+test('burrowing highlights every reachable hex with the green landing hex',()=>{
+  const quiet=hexTile({});
+  assert.equal(quiet.tile,'hexHoney');
+  assert.equal(quiet.mark,null);
+  const target=hexTile({tool:true,mode:'tunnel'});
+  assert.equal(target.tile,'hexLanding');
+  assert.equal(target.mark,null);
+  const planted=hexTile({tool:true,mode:'seed'});
+  assert.equal(planted.tile,'hexHoney');
+  assert.equal(planted.mark,'mango');
+  const css=readFileSync(new URL('../src/view/game.css',import.meta.url),'utf8');
+  assert.match(css,/\.hop-cell\.is-tool\.is-tunnel\{[^}]*hop-landing-pulse/);
+  assert.match(css,/\.hop-cell\.is-tool\.is-tunnel \.hop-hex\{[^}]*hop-landing-breathe/);
+  const board=readFileSync(new URL('../src/view/Board.jsx',import.meta.url),'utf8');
+  assert.match(board,/tool&&\(mode==='summon'\|\|mode==='tunnel'\)/);
+});
+
+test('settings can reset the game to the first field',()=>{
+  const source=readFileSync(new URL('../src/view/Game.jsx',import.meta.url),'utf8');
+  const options=source.indexOf('hop-options-label');
+  const settings=source.slice(options,source.indexOf('hop-overlay',options));
+  assert.match(settings,/Reset to first field/);
+  assert.match(settings,/resetToFirst\(\)/);
+  assert.match(source,/function resetToFirst/);
+  assert.match(source,/unlocked:\s*1/);
+  assert.match(source,/badges:\s*\{\}/);
+  assert.match(source,/freshHearts\(\)/);
+  assert.match(source,/newRound\(LEVELS\[0\]\)/);
+});
+
 test('honey cells stay honey, landings use the green hex, and flowers use a flower tile',()=>{
   const empty=hexTile({});
   assert.equal(empty.tile,'hexHoney');
