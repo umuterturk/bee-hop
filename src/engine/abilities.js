@@ -53,6 +53,14 @@ export function summonTargets(state){
   const blocked=new Set([...(state.blocked||[]),...state.pollen,...state.bees]);
   return (state.hives||[]).filter(cell=>!blocked.has(cell));
 }
+/** Tool hexes that leave the bee with at least one hop. */
+export function openingTargets(state,bee,tool){
+  const cells=tool==='seed'?seedTargets(state,bee):tool==='tunnel'?tunnelTargets(state,bee):tool==='summon'?summonTargets(state):[];
+  return cells.filter(cell=>{
+    const action=tool==='summon'?{type:'summon',hive:cell}:{type:tool,bee,to:cell};
+    return legalJumps(step(state,action)).length>0;
+  });
+}
 function placeBee(bees,from,to){return sorted(bees.map(bee=>bee===from?to:bee));}
 
 export function step(state,action){

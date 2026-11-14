@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {hexDistance,legalJumps,seedTargets,solveAbilities,statusOf,step,summonTargets,tunnelTargets} from '../src/engine/abilities.js';
+import {hexDistance,legalJumps,openingTargets,seedTargets,solveAbilities,statusOf,step,summonTargets,tunnelTargets} from '../src/engine/abilities.js';
 import {findHint} from '../src/session/hint.js';
 
 const emptyCharges={tunnel:0,seed:0,worker:0};
@@ -70,4 +70,19 @@ test('seeded pollen counts toward the clear',()=>{
   assert.equal(statusOf(planted),'playing');
   const cleared=step(planted,{type:'jump',bee:0,over:2,to:3});
   assert.equal(statusOf(cleared),'won');
+});
+test('an opening target is a tool hex that creates a hop',()=>{
+  const state={width:8,height:7,bees:[8],pollen:[6],charges:{tunnel:0,seed:1,worker:0},hives:[],blocked:[]};
+  assert.equal(legalJumps(state).length,0);
+  const all=seedTargets(state,8);
+  const opening=openingTargets(state,8,'seed');
+  assert.ok(all.length>opening.length);
+  assert.ok(opening.length>0);
+  for(const cell of opening){
+    assert.ok(legalJumps(step(state,{type:'seed',bee:8,to:cell})).length>0);
+  }
+  for(const cell of all){
+    if(opening.includes(cell))continue;
+    assert.equal(legalJumps(step(state,{type:'seed',bee:8,to:cell})).length,0);
+  }
 });
