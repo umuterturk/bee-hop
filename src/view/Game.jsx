@@ -1,7 +1,7 @@
 import React,{useEffect,useRef,useState} from 'react';
 import {LEVELS,WAVE_NAMES} from '../content/catalog.js';
 import {inventoryFor} from '../content/campaign.js';
-import {legalJumps,seedTargets,statusOf,summonTargets,tunnelTargets} from '../engine/abilities.js';
+import {legalJumps,openingTargets,seedTargets,statusOf,summonTargets,tunnelTargets} from '../engine/abilities.js';
 import {commit,newRound,spendDance,toBoard,undo} from '../session/round.js';
 import {findHint} from '../session/hint.js';
 import {loadProgress,saveProgress} from '../session/progress.js';
@@ -9,12 +9,25 @@ import {HEART_CAP,applyLifeRestart,attemptLocked,freshHearts,grantHeart,heartWai
 import {track} from '../services/analytics.js';
 import {playCue,setMusic,unlockAudio} from '../services/audio.js';
 import {buzz} from '../services/haptics.js';
-import {boardNote,boosterCallout,earnedBadges,pollenLeft,stuckChoice} from './presentation.js';
+import {boardNote,boosterCallout,earnedBadges,hopOffer,offerEpisode,pollenLeft,stuckChoice} from './presentation.js';
 import Board from './Board.jsx';
 import {boardFrame} from './layout.js';
 import {Sprite,SpriteButton,SpriteSurface} from './Sprite.jsx';
 
 const BADGE_SPRITE={pure:'heart',clean:'leaf',boss:'crown'};
+
+function reachableTools(board){
+  return {
+    seed:board.bees.some(bee=>openingTargets(board,bee,'seed').length>0),
+    tunnel:board.bees.some(bee=>openingTargets(board,bee,'tunnel').length>0),
+    summon:openingTargets(board,board.bees[0],'summon').length>0
+  };
+}
+function beeForTool(board,tool,selected){
+  if(!tool||tool==='summon')return selected;
+  if(board.bees.includes(selected)&&openingTargets(board,selected,tool).length)return selected;
+  return board.bees.find(bee=>openingTargets(board,bee,tool).length)??selected;
+}
 
 function boot(){
   const saved=loadProgress();
@@ -40,6 +53,8 @@ export default function Game(){
   const [jarPulse,setJarPulse]=useState(0);
   const [now,setNow]=useState(()=>Date.now());
   const [debug]=useState(()=>typeof window!=='undefined'&&new URLSearchParams(window.location.search).has('debug'));
+  const [closedEpisode,setClosedEpisode]=useState(null);
+  const [guided,setGuided]=useState(null);
   const roundRef=useRef(round);
   const modeRef=useRef(mode);
   const beeRef=useRef(selectedBee);
@@ -50,6 +65,7 @@ export default function Game(){
   const acted=useRef(false);
   const jarRef=useRef(null);
   const nextRef=useRef(null);
+  const offerRef=useRef(null);
   roundRef.current=round;
   modeRef.current=mode;
   beeRef.current=selectedBee;
@@ -64,20 +80,28 @@ export default function Game(){
   const allJumps=boardJumps.filter(move=>move.bee===selected);
   const jumps=filtered==null?allJumps:allJumps.filter(move=>move.over===filtered);
   const otherJumps=boardJumps.length-allJumps.length;
-  const toolCells=mode==='tunnel'?tunnelTargets(board,selected):mode==='seed'?seedTargets(board,selected):mode==='summon'?summonTargets(board):[];
+  const toolCells=!mode?[]:guided===mode
+    ?openingTargets(board,selected,mode)
+    :mode==='tunnel'?tunnelTargets(board,selected):mode==='seed'?seedTargets(board,selected):summonTargets(board);
   const hintStep=hint?.outcome==='win'?hint.steps[hint.layer]:null;
   const reduced=progress.settings.reduceMotion;
   const undoAvailable=round.past.length>0&&(round.undoLeft===null||round.undoLeft>0);
   const note=boardNote({status,hint,mode,filtered:filtered!=null,level,round,jumpCount:jumps.length,otherJumps,undoAvailable});
   const noHops=status==='playing'&&!mode&&jumps.length===0&&otherJumps===0;
+  const reachable=reachableTools(board);
   const callout=boosterCallout({
-    status,mode,jumpCount:jumps.length,otherJumps,charges:round.charges,undoAvailable
+    status,mode,jumpCount:jumps.length,otherJumps,charges:round.charges,undoAvailable,reachable
   });
   const waveName=WAVE_NAMES[level.wave];
   const waveStart=level.wave*5;
   const hearts=refillHearts(progress.hearts,now);
   const locked=attemptLocked(hearts,round);
   const stuck=stuckChoice({undoAvailable,hearts});
+  const offer=hopOffer({status,mode,jumpCount:jumps.length,otherJumps,charges:round.charges,reachable,locked});
+  const episode=offerEpisode(round);
+  const offerOpen=!!offer&&closedEpisode!==episode;
+  const previewBee=beeForTool(board,offer?.tool,selected);
+  const previewCells=offerOpen?openingTargets(board,previewBee,offer.tool):[];
   const lifeOffer=applyLifeRestart(hearts,round,status,now);
   const waitLabel=heartWait(hearts,now);
   useEffect(()=>{track('level_start',{levelId:level.id,wave:level.wave,boss:level.boss});acted.current=false;restarting.current=false;},[level.id,deal]);
@@ -115,6 +139,9 @@ export default function Game(){
     if(status==='won')nextRef.current?.focus({preventScroll:true});
   },[status,level.id,deal]);
   useEffect(()=>{
+    if(offerOpen)offerRef.current?.focus({preventScroll:true});
+  },[offerOpen,episode]);
+  useEffect(()=>{
     setNudge(false);
     if(reduced||status!=='playing')return undefined;
     const timer=setTimeout(()=>setNudge(true),5000);
@@ -144,7 +171,7 @@ export default function Game(){
     setMusic(partial.music);
   }
   function resetSelection(nextRound,bee=nextRound.bees[0]){
-    setMode(null);setFiltered(null);setHint(null);setFlight(null);setSelectedBee(bee);
+    setMode(null);setGuided(null);setFiltered(null);setHint(null);setFlight(null);setSelectedBee(bee);
   }
   function resetToFirst(){
     const reset={...progress,unlocked:1,badges:{},resume:null,hearts:freshHearts()};
@@ -198,7 +225,7 @@ export default function Game(){
     if(next===current){playCue('deny',progress.settings.sound);return;}
     roundRef.current=next;
     setRound(next);
-    setHint(null);setFiltered(null);setMode(null);
+    setHint(null);setFiltered(null);setMode(null);setGuided(null);
     const bee=action.type==='summon'?action.hive:action.to??selected;
     if(action.type!=='seed')setSelectedBee(bee);
     const picked=next.pollen.length<current.pollen.length;
@@ -221,7 +248,7 @@ export default function Game(){
     if(next===roundRef.current)return;
     const cleared=statusOf(toBoard(next))==='stuck'?next:{...next,failedHeart:false};
     roundRef.current=cleared;
-    setRound(cleared);setHint(null);setFiltered(null);setMode(null);setFlight(null);
+    setRound(cleared);setHint(null);setFiltered(null);setMode(null);setGuided(null);setFlight(null);
     setSelectedBee(cleared.bees.includes(beeRef.current)?beeRef.current:cleared.lead);
     track('undo',{levelId:level.id,left:cleared.undoLeft});
     playCue('undo',progress.settings.sound);
@@ -240,6 +267,7 @@ export default function Game(){
       setHint({...hint,layer:hint.layer+1});
       if(step?.bee!=null)setSelectedBee(step.bee);
       setFiltered(step?.type==='jump'?step.over:null);
+      setGuided(null);
       setMode(step?.type==='jump'||!step?null:step.type);
       track('hint',{levelId:level.id,outcome:'win',layer:hint.layer+1});
       playCue('hint',progress.settings.sound);
@@ -254,6 +282,7 @@ export default function Game(){
       setHint({...solved,layer:0});
       if(solved.outcome==='win'&&step?.bee!=null)setSelectedBee(step.bee);
       setFiltered(step?.type==='jump'?step.over:null);
+      setGuided(null);
       setMode(step?.type==='jump'||!step?null:step.type);
       track('hint',{levelId:level.id,outcome:solved.outcome,layer:0});
       playCue(solved.outcome==='win'?'hint':solved.outcome==='none'?'hintnone':'hintunknown',progress.settings.sound);
@@ -286,8 +315,37 @@ export default function Game(){
     poke();
     setFiltered(null);
     const off=mode===next;
+    setGuided(null);
     setMode(off?null:next);
     playCue(off?'disarm':`arm-${next}`,progress.settings.sound);
+  }
+  function dismissOffer(){
+    setClosedEpisode(offerEpisode(roundRef.current));
+  }
+  function takeOffer(){
+    poke();
+    const current=roundRef.current;
+    const boardNow=toBoard(current);
+    const bee=current.bees.includes(beeRef.current)?beeRef.current:current.bees[0];
+    const jumpsNow=legalJumps(boardNow);
+    const mine=jumpsNow.filter(move=>move.bee===bee).length;
+    const choice=hopOffer({
+      status:statusOf(boardNow),
+      mode:modeRef.current,
+      jumpCount:mine,
+      otherJumps:jumpsNow.length-mine,
+      charges:current.charges,
+      reachable:reachableTools(boardNow),
+      locked:attemptLocked(refillHearts(hearts,Date.now()),current)
+    });
+    if(!choice)return;
+    setSelectedBee(beeForTool(boardNow,choice.tool,bee));
+    setFiltered(null);
+    setHint(null);
+    setGuided(choice.tool);
+    setMode(choice.tool);
+    setClosedEpisode(offerEpisode(current));
+    playCue(`arm-${choice.tool}`,progress.settings.sound);
   }
   function booster(id,sprite,label,{count,disabled,pressed,onClick,aria}){
     return <div className={`hop-booster is-${id} ${disabled?'is-unavailable':''} ${callout===id?'is-callout':''}`}>
@@ -300,7 +358,7 @@ export default function Game(){
   const undoLabel=round.undoLeft==null?'Undo':`Undo ${round.undoLeft}`;
   const hintLabel=round.danceLeft==null?'Hint':`Hint ${round.danceLeft}`;
 
-  return <div className={`hop ${level.boss?'is-boss':''} ${reduced?'is-reduced':''} ${locked?'is-tired':''} ${noHops?'is-no-hops':''}`} data-status={status} data-level={level.id}
+  return <div className={`hop ${level.boss?'is-boss':''} ${reduced?'is-reduced':''} ${locked?'is-tired':''} ${noHops?'is-no-hops':''} ${offerOpen?'is-offering':''}`} data-status={status} data-level={level.id}
     style={{'--board-aspect':boardFrame(level.width,level.height).aspect}}
     onPointerDown={poke}>
     <header className="hop-hud">
@@ -332,8 +390,18 @@ export default function Game(){
     <div className={`hop-stage ${noHops?'is-no-hops':''}`}>
       <Board key={deal} width={level.width} height={level.height} round={round} selected={selected} jumps={jumps}
         pollenChoices={allJumps.map(move=>move.over)} toolCells={toolCells} hintStep={hintStep} mode={mode}
+        previewCells={previewCells} previewMode={offerOpen?offer.tool:null}
         flight={flight} reduced={reduced} idle={nudge} status={status}
         filtered={filtered} onCell={onCell}/>
+      {offerOpen&&<section className="hop-offer" role="dialog" aria-modal="false" aria-labelledby="hop-offer-title">
+        <p className="hop-kicker" id="hop-offer-title">{offer.title}</p>
+        <p>{offer.body}</p>
+        <div className="hop-offer-actions">
+          <SpriteSurface as="button" ref={offerRef} type="button" className="hop-next" name="buttonGold" onClick={takeOffer}>{offer.action}</SpriteSurface>
+          {undoAvailable&&<button type="button" className="hop-ghost-btn" onClick={doUndo}>Undo</button>}
+          <button type="button" className="hop-ghost-btn" onClick={dismissOffer}>Not now</button>
+        </div>
+      </section>}
       <p className="hop-note" aria-live="polite">{locked?`Out of hearts · ${waitLabel}`:note}</p>
     </div>
 

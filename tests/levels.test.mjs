@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {DIRECTIONS,LEVELS,LEVEL_SPECS,WAVE_NAMES,legalMoves,playMove,
-  selectableMoves,solvePuzzle,stepHex,verifyPath,evaluatePuzzle,generatePuzzle} from '../src/content/catalog.js';
+  selectableMoves,solvePuzzle,stepHex,verifyPath,evaluatePuzzle,generatePuzzle,
+  difficultyWave,pollenFor,targetFor,bossFor} from '../src/content/catalog.js';
 import {legalJumps,statusOf as boardStatus} from '../src/engine/abilities.js';
 import {commit,newRound,toBoard} from '../src/session/round.js';
 
@@ -87,23 +88,49 @@ test('all 40 published levels have a valid full solution and exact metrics',()=>
     }
     assert.equal(boardStatus(toBoard(round)),'won');
     assert.equal(round.usedTool,false);
-    if(i>0&&i%5!==0)assert.ok(level.metrics.difficulty>LEVELS[i-1].metrics.difficulty,
-      `Difficulty did not rise between ${i} and ${i+1}`);
-    if(i>0&&i%5===0)assert.ok(level.metrics.difficulty<LEVELS[i-1].metrics.difficulty,
-      `Level ${i+1} should be a breather after the preceding wave boss`);
+    if(i>0&&i<5)assert.ok(level.metrics.difficulty>LEVELS[i-1].metrics.difficulty,
+      `Onboarding difficulty did not rise between ${i} and ${i+1}`);
   }
 });
-test('board grows only at wave boundaries after the five-level onboarding',()=>{
+test('after onboarding the meadow is 8x8, fuller, and bosses land every 20 rounds',()=>{
   assert.deepEqual([LEVELS[0].width,LEVELS[0].height],[3,3]);
   assert.ok(LEVELS.slice(1,5).every(level=>level.width===4&&level.height===4));
-  const sizes=[[5,5],[6,5],[7,6],[8,7],[9,7],[10,8],[11,9]];
-  for(let wave=1;wave<8;wave++){
-    const slice=LEVELS.slice(wave*5,wave*5+5);
-    assert.ok(slice.every(level=>level.width===sizes[wave-1][0]&&level.height===sizes[wave-1][1]));
-    assert.ok(slice.slice(0,4).every(level=>!level.boss));
-    assert.equal(slice[4].boss,true);
-    assert.ok(slice[4].metrics.difficulty>slice[3].metrics.difficulty);
+  assert.ok(LEVELS.slice(0,5).every(level=>!level.boss));
+  const meadow=LEVELS.slice(5);
+  assert.ok(meadow.every(level=>level.width===8&&level.height===8));
+  assert.deepEqual(LEVELS.filter(level=>level.boss).map(level=>level.id),[20,40]);
+  assert.ok(meadow.every(level=>level.pollen.length>=6&&level.pollen.length<=14));
+  assert.ok(LEVELS[19].pollen.length>LEVELS[9].pollen.length);
+  assert.ok(LEVELS[19].pollen.length>LEVELS[29].pollen.length);
+  assert.ok(LEVELS[39].pollen.length>LEVELS[29].pollen.length);
+});
+test('meadow difficulty follows a sine and comes back down between bosses',()=>{
+  assert.equal(difficultyWave(10),0);
+  assert.equal(difficultyWave(20),1);
+  assert.equal(difficultyWave(30),0);
+  assert.equal(difficultyWave(40),1);
+  assert.ok(Math.abs(difficultyWave(15)-0.5)<1e-12);
+  assert.ok(difficultyWave(25)<difficultyWave(20));
+  assert.ok(difficultyWave(35)>difficultyWave(30));
+  for(const spec of LEVEL_SPECS){
+    assert.equal(spec.pollen,pollenFor(spec.id));
+    assert.equal(spec.target,targetFor(spec.id));
+    assert.equal(spec.boss,bossFor(spec.id));
+    if(spec.boss)assert.match(spec.name,/Boss/);
+    else assert.doesNotMatch(spec.name,/Boss/);
   }
+  const d=id=>LEVELS[id-1].metrics.difficulty;
+  for(const spec of LEVEL_SPECS){
+    if(spec.id<=5)continue;
+    assert.ok(Math.abs(d(spec.id)-spec.target)<=1.5,
+      `Level ${spec.id} difficulty ${d(spec.id)} left the sine target ${spec.target}`);
+  }
+  assert.ok(d(20)>d(10)+2,`crest ${d(20)} should clear the valley ${d(10)}`);
+  assert.ok(d(30)<d(20)-2,`level 30 (${d(30)}) should fall back after the boss (${d(20)})`);
+  assert.ok(d(40)>d(30)+2,`final boss ${d(40)} should rise out of the valley ${d(30)}`);
+  assert.ok(d(25)<d(20)&&d(25)>d(30));
+  assert.ok(d(19)<d(20)&&d(21)<d(20),`boss 20 should be the local crest (${d(19)}, ${d(20)}, ${d(21)})`);
+  assert.ok(d(39)<d(40),`boss 40 should rise above ${d(39)}`);
 });
 test('one bee jumps match the reference rules on every published field',()=>{
   for(const level of LEVELS){

@@ -61,23 +61,52 @@ export function hintCopy(hint){
   return later?'After that, this landing still clears the field.':'This landing is on a route that clears the field.';
 }
 /** Which booster to pulse when the selected bee has no hop. */
-export function boosterCallout({status,mode,jumpCount,otherJumps=0,charges={},undoAvailable=false}){
+export function boosterCallout({status,mode,jumpCount,otherJumps=0,charges={},undoAvailable=false,reachable=null}){
   if(status!=='playing'||mode||jumpCount>0||otherJumps>0)return null;
-  if(charges.seed>0)return 'seed';
-  if(charges.tunnel>0)return 'tunnel';
-  if(charges.worker>0)return 'summon';
+  const open=(id,charge)=>charge>0&&(reachable==null||reachable[id]);
+  if(open('seed',charges.seed))return 'seed';
+  if(open('tunnel',charges.tunnel))return 'tunnel';
+  if(open('summon',charges.worker))return 'summon';
   if(undoAvailable)return 'undo';
   return 'hint';
+}
+
+const HOP_TOOLS=[
+  {tool:'seed',charge:'seed',reach:'seed',body:'Plant a flower to make a new hop.',action:'Plant a flower'},
+  {tool:'tunnel',charge:'tunnel',reach:'tunnel',body:'Burrow to a nearby hex. A hop may open from there.',action:'Burrow'},
+  {tool:'summon',charge:'worker',reach:'summon',body:'Call a worker at the hive. The other bee may have a hop.',action:'Call a worker'}
+];
+
+/** Choice shown when no bee can hop, but a charged tool can make one.
+ * Seed, then tunnel, then worker. A charge with no legal hex is skipped. */
+export function hopOffer({status,mode,jumpCount,otherJumps=0,charges={},reachable={},locked=false}){
+  if(locked||status!=='playing'||mode||jumpCount>0||otherJumps>0)return null;
+  const pick=HOP_TOOLS.find(item=>(charges[item.charge]>0)&&reachable[item.reach]);
+  if(!pick)return null;
+  return {tool:pick.tool,title:'No hops from here',body:pick.body,action:pick.action};
+}
+
+/** Identity of one no-hop visit. Dismissing hides the card until this changes. */
+export function offerEpisode(round){
+  const charges=round.charges||{};
+  return [
+    (round.bees||[]).join('.'),
+    (round.pollen||[]).join('.'),
+    charges.tunnel||0,
+    charges.seed||0,
+    charges.worker||0,
+    round.past?.length||0
+  ].join('|');
 }
 
 /** Quiet cells stay honey. A landing is the vivid green hex. A flower sits on its own tile. */
 export function hexTile({
   landing=false,pollen=false,hive=false,
-  tool=false,mode=null,settledBee=false,worker=false
+  tool=false,mode=null,settledBee=false,worker=false,preview=false
 }){
   let tile='hexHoney';
   if(pollen)tile='hexFlower';
-  if(landing||(tool&&(mode==='summon'||mode==='tunnel')))tile='hexLanding';
+  if(landing||(tool&&(mode==='summon'||mode==='tunnel'))||preview)tile='hexLanding';
   let mark=null;
   if(settledBee)mark=worker?'beeWorker':'bee';
   else if(tool&&mode==='seed')mark='mango';

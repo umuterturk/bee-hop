@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {LEVELS} from '../src/content/catalog.js';
 import {legalJumps,statusOf} from '../src/engine/abilities.js';
-import {boardNote,boosterCallout,collectBurst,hexTile,stuckChoice} from '../src/view/presentation.js';
+import {boardNote,boosterCallout,collectBurst,hexTile,hopOffer,offerEpisode,stuckChoice} from '../src/view/presentation.js';
 
 test('playing with no landings never asks for a green hex',()=>{
   const round={turns:4,usedUndo:false,bees:[32],pollen:[20],charges:{tunnel:0,seed:1,worker:0},past:[1]};
@@ -238,6 +238,76 @@ test('the meadow shows around the board, with icon-only boosters outside it',()=
   assert.ok(dockRule);
   assert.match(dockRule[0],/background:\s*#fffaf0d4/);
   assert.match(css,/\.hop-booster\.is-unavailable\{[^}]*opacity/);
+});
+
+test('no hops with a usable tool offers that tool instead of ending the field',()=>{
+  const offer=hopOffer({
+    status:'playing',mode:null,jumpCount:0,otherJumps:0,
+    charges:{tunnel:1,seed:1,worker:0},
+    reachable:{seed:true,tunnel:true,summon:false}
+  });
+  assert.equal(offer.tool,'seed');
+  assert.equal(offer.title,'No hops from here');
+  assert.equal(offer.action,'Plant a flower');
+  assert.match(offer.body,/flower/i);
+  assert.doesNotMatch(`${offer.title} ${offer.body}`,/stuck/i);
+});
+
+test('the offer skips a charged tool that cannot reach a hex',()=>{
+  const offer=hopOffer({
+    status:'playing',mode:null,jumpCount:0,
+    charges:{tunnel:1,seed:1,worker:1},
+    reachable:{seed:false,tunnel:true,summon:true}
+  });
+  assert.equal(offer.tool,'tunnel');
+  assert.equal(offer.action,'Burrow');
+});
+
+test('the offer stays quiet while a hop, another bee, or an armed tool already explains the board',()=>{
+  const base={
+    status:'playing',mode:null,jumpCount:0,otherJumps:0,
+    charges:{tunnel:0,seed:1,worker:0},
+    reachable:{seed:true}
+  };
+  assert.equal(hopOffer({...base,jumpCount:2}),null);
+  assert.equal(hopOffer({...base,otherJumps:1}),null);
+  assert.equal(hopOffer({...base,mode:'seed'}),null);
+  assert.equal(hopOffer({...base,status:'stuck'}),null);
+  assert.equal(hopOffer({...base,locked:true}),null);
+  assert.equal(hopOffer({...base,reachable:{seed:false}}),null);
+});
+
+test('a dismissed offer returns only after the board changes',()=>{
+  const round={bees:[32],pollen:[20],charges:{tunnel:0,seed:1,worker:0},past:[1]};
+  const same=offerEpisode(round);
+  assert.equal(offerEpisode({...round}),same);
+  assert.notEqual(offerEpisode({...round,past:[1,2]}),same);
+  assert.notEqual(offerEpisode({...round,pollen:[20,21]}),same);
+});
+
+test('the no-hop offer sits on the field and leaves the booster dock usable',()=>{
+  const view=readFileSync(new URL('../src/view/Game.jsx',import.meta.url),'utf8');
+  const board=readFileSync(new URL('../src/view/Board.jsx',import.meta.url),'utf8');
+  const css=readFileSync(new URL('../src/view/game.css',import.meta.url),'utf8');
+  const play=view.slice(view.indexOf('className={`hop '),view.indexOf('hop-sheet-backdrop'));
+  const stage=play.indexOf('hop-stage');
+  const offer=play.indexOf('hop-offer');
+  const dock=play.indexOf('aria-label="Boosters"');
+  assert.ok(stage!==-1&&offer!==-1&&dock!==-1&&stage<offer&&offer<dock);
+  assert.match(view,/hopOffer\(/);
+  assert.match(view,/offerEpisode\(/);
+  assert.match(play,/offer\.action/);
+  assert.match(play,/Not now/);
+  assert.match(play,/previewCells/);
+  assert.match(board,/is-preview/);
+  assert.match(board,/preview/);
+  assert.match(css,/\.hop-cell\.is-preview/);
+  assert.doesNotMatch(css,/\.hop-cell\.is-preview\{[^}]*hop-landing-pulse/);
+  assert.match(play,/is-offering/);
+  assert.doesNotMatch(view.slice(view.indexOf("status==='stuck'")),/hop-offer/);
+  const offering=css.match(/\.hop\.is-offering\{[^}]*\}/);
+  assert.ok(offering);
+  assert.match(offering[0],/--fit-chrome/);
 });
 
 test('the screenshot board (last flower, bee off-line) is still playing with zero hops',()=>{
