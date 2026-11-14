@@ -1,5 +1,5 @@
 export {DIRECTIONS,stepHex,legalMoves,selectableMoves,playMove,statusOf,verifyPath,solvePuzzle} from '../engine/rules.js';
-export {LEVEL_SPECS,WAVE_NAMES,WAVE_SIZES} from './levelSpecs.js';
+export {LEVEL_SPECS,WAVE_NAMES,WAVE_SIZES,BOSS_INTERVAL,ONBOARDING_LEVELS,MEADOW_SIZE,difficultyWave,pollenFor,targetFor,bossFor} from './levelSpecs.js';
 export {evaluatePuzzle} from '../engine/puzzleEvaluator.js';
 export {generatePuzzle} from '../engine/generator.js';
 import {GENERATED_LEVELS} from './levels.generated.js';

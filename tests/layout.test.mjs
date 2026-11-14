@@ -23,7 +23,7 @@ test('every field draws taller than it is wide, with logical width down the scre
   }
   const wide=LEVELS.filter(level=>level.width>=8);
   assert.ok(wide.length>=8);
-  assert.ok(wide.every(level=>level.width>=8&&level.width<=11));
+  assert.ok(wide.every(level=>level.width===8&&level.height===8));
 });
 
 test('a 7 by 5 field stands seven tall and five wide',()=>{
