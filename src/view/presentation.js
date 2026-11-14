@@ -106,7 +106,7 @@ export function hexTile({
 }){
   let tile='hexHoney';
   if(pollen)tile='hexFlower';
-  if(landing||(tool&&mode==='summon')||preview)tile='hexLanding';
+  if(landing||(tool&&(mode==='summon'||mode==='tunnel'))||preview)tile='hexLanding';
   let mark=null;
   if(settledBee)mark=worker?'beeWorker':'bee';
   else if(tool&&mode==='seed')mark='mango';

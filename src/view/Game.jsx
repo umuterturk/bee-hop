@@ -173,6 +173,18 @@ export default function Game(){
   function resetSelection(nextRound,bee=nextRound.bees[0]){
     setMode(null);setGuided(null);setFiltered(null);setHint(null);setFlight(null);setSelectedBee(bee);
   }
+  function resetToFirst(){
+    const reset={...progress,unlocked:1,badges:{},resume:null,hearts:freshHearts()};
+    saveProgress(reset);
+    setProgress(reset);
+    const fresh=newRound(LEVELS[0]);
+    roundRef.current=fresh;
+    setLevelId(1);
+    setRound(fresh);
+    resetSelection(fresh);
+    setDeal(value=>value+1);
+    setHelp(false);
+  }
   function payForLeave(){
     const current=roundRef.current;
     return applyLifeRestart(refillHearts(hearts,Date.now()),current,statusOf(toBoard(current)),Date.now());
@@ -454,6 +466,7 @@ export default function Game(){
           <label><input type="checkbox" checked={progress.settings.haptics} onChange={event=>patchSettings({haptics:event.target.checked})}/> Haptics</label>
           <label><input type="checkbox" checked={progress.settings.reduceMotion} onChange={event=>patchSettings({reduceMotion:event.target.checked})}/> Reduce motion</label>
           <button type="button" className="hop-option" disabled={hearts.count>=HEART_CAP} onClick={()=>{playCue('heart',progress.settings.sound);setProgress(prev=>({...prev,hearts:grantHeart(prev.hearts,Date.now())}));}}>New life</button>
+          <button type="button" className="hop-option" onClick={()=>{playCue('restart',progress.settings.sound);resetToFirst();}}>Reset to first field</button>
         </div>
       </section>
     </div>}
@@ -491,7 +504,7 @@ export default function Game(){
     {debug&&<details className="hop-debug">
       <summary>Design numbers</summary>
       <p>Difficulty {level.metrics.difficulty.toFixed(2)} · winning routes {level.metrics.winningPaths} · forks {level.metrics.forks}</p>
-      <button type="button" onClick={()=>{const reset={...progress,unlocked:1,badges:{},resume:null,hearts:freshHearts()};saveProgress(reset);setProgress(reset);const fresh=newRound(LEVELS[0]);roundRef.current=fresh;setLevelId(1);setRound(fresh);resetSelection(fresh);setDeal(value=>value+1);}}>Reset progress</button>
+      <button type="button" onClick={resetToFirst}>Reset progress</button>
     </details>}
   </div>;
 }

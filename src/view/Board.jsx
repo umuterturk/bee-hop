@@ -213,7 +213,7 @@ export default function Board({
         onPointerDown={event=>{if(!reduced&&(landing||tool||flowerChoice))tapBurst(event.currentTarget);}}
         onClick={()=>onCell(cell)}>
         <Sprite name={tile} className="hop-hex"/>
-        {(landing||(tool&&mode==='summon'))&&<Sprite name="sparkleSmall" className="hop-landing-spark"/>}
+        {(landing||(tool&&(mode==='summon'||mode==='tunnel')))&&<Sprite name="sparkleSmall" className="hop-landing-spark"/>}
         {piece&&<Sprite name={piece} className={`hop-mark is-${piece}`}/>}
         {hinted&&<Sprite name="sparkleSmall" className="hop-spark"/>}
       </button>;

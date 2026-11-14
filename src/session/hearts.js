@@ -1,6 +1,6 @@
 export const HEART_CAP=3
-// First heart back in 5 minutes, the next in 15, the last in 20.
-export const HEART_REFILL_MS=[5*60*1000,15*60*1000,20*60*1000]
+// Temporary playtest pace: every missing heart returns in 30 seconds.
+export const HEART_REFILL_MS=[30*1000,30*1000,30*1000]
 
 function refillStep(step){
   if(!Number.isInteger(step)||step<=0)return 0
